@@ -4,7 +4,7 @@ import { app } from 'electron';
 import crypto from 'crypto';
 import fs from 'fs';
 import logger from './logger';
-import libsodium from 'libsodium-wrappers';
+import sodium from 'libsodium-wrappers-sumo';
 
 /**
  * Service for managing an encrypted SQLite database with SQLCipher
@@ -57,19 +57,31 @@ class EncryptedDatabaseService {
         logger.warn('open() called while DB already unlocked');
         return true;
       }
-
-      // Initialize libsodium
-      await libsodium.ready;
       
       // Derive a 64-byte key using Argon2id (RAM: 256MB, Operations: 4)
+      // Note: getSalt() already ensures sodium.ready is awaited
       const salt = await this.getSalt();
-      const keyBytes = libsodium.crypto_pwhash(
+      
+      // Defensive fallbacks for crypto constants
+      const opslimit = typeof sodium.crypto_pwhash_OPSLIMIT_MODERATE === 'number'
+                      ? sodium.crypto_pwhash_OPSLIMIT_MODERATE
+                      : 4;
+                      
+      const memlimit = typeof sodium.crypto_pwhash_MEMLIMIT_MODERATE === 'number'
+                      ? sodium.crypto_pwhash_MEMLIMIT_MODERATE 
+                      : 33554432; // 32 MB
+                      
+      const algorithm = typeof sodium.crypto_pwhash_ALG_ARGON2ID13 === 'number'
+                      ? sodium.crypto_pwhash_ALG_ARGON2ID13
+                      : 2;
+      
+      const keyBytes = sodium.crypto_pwhash(
         64,
         password,
         salt,
-        libsodium.crypto_pwhash_OPSLIMIT_MODERATE,
-        libsodium.crypto_pwhash_MEMLIMIT_MODERATE,
-        libsodium.crypto_pwhash_ALG_ARGON2ID13
+        opslimit,
+        memlimit,
+        algorithm
       );
       
       // Convert to hex for SQLCipher
@@ -90,7 +102,7 @@ class EncryptedDatabaseService {
       this.db.prepare('SELECT count(*) FROM sqlite_master').get();
       
       this._isOpen = true;
-      logger.info('Database opened successfully');
+      logger.info('[DB] Database opened successfully at %s', this.dbPath);
       
       // Initialize database if needed
       this.initializeSchema();
@@ -191,31 +203,40 @@ class EncryptedDatabaseService {
    * @returns Promise resolving to the salt as Uint8Array
    */
   private async getSalt(): Promise<Uint8Array> {
-    await libsodium.ready;  // block until WASM loaded
-    const SALT_LEN = libsodium.crypto_pwhash_SALTBYTES;
-    const saltPath = path.join(app.getPath('userData'), 'key_derivation.salt');
+    await sodium.ready;  // block until WASM loaded
+    
+    // Add defensive fallback for crypto constants
+    const SALT_LEN = typeof sodium.crypto_pwhash_SALTBYTES === 'number' 
+                     ? sodium.crypto_pwhash_SALTBYTES 
+                     : 16;  // ✨ defensive fallback
+    
+    const SALT_FILE = path.join(app.getPath('userData'), 'key_derivation.salt');
+    
+    // Log salt length for debugging
+    logger.debug('[DB] Using libsodium sumo build — SALT_LEN=%d', SALT_LEN);
     
     try {
       // If salt exists, use it
-      if (fs.existsSync(saltPath)) {
+      if (fs.existsSync(SALT_FILE)) {
         logger.debug('Salt file found → reusing existing salt');
-        const salt = fs.readFileSync(saltPath);
+        const salt = fs.readFileSync(SALT_FILE);
+        logger.info('[DB] Salt loaded (%dB)', SALT_LEN);
         return salt;
       }
       
       // Otherwise, create a new salt
-      const salt = libsodium.randombytes_buf(SALT_LEN);
-      fs.writeFileSync(saltPath, Buffer.from(salt));
-      logger.info('New salt generated and persisted → path=%s', saltPath);
+      const salt = sodium.randombytes_buf(SALT_LEN);
+      fs.writeFileSync(SALT_FILE, Buffer.from(salt));
+      logger.info('[DB] Salt created & loaded (%dB)', SALT_LEN);
       return salt;
     } catch (error) {
       // If there's any error, generate a salt but don't save it
       // This is less secure but prevents complete failure
       logger.error('Error handling salt file:', error);
       
-      // Ensure libsodium is ready before generating random bytes
-      await libsodium.ready;
-      return libsodium.randombytes_buf(SALT_LEN);
+      // Ensure sodium is ready before generating random bytes
+      await sodium.ready;
+      return sodium.randombytes_buf(SALT_LEN);
     }
   }
   

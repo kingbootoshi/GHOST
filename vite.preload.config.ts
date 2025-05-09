@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   build: {
     rollupOptions: {
-      external: ['keytar', 'better-sqlite3', 'electron']
+      external: ['keytar', 'better-sqlite3', 'electron', 'libsodium-wrappers-sumo']
     }
   }
 });

@@ -2,7 +2,7 @@ import encryptedDatabase from '../encryptedDatabase';
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
-import libsodium from 'libsodium-wrappers';
+import sodium from 'libsodium-wrappers-sumo';
 
 // Mock the dependencies
 jest.mock('electron', () => ({
@@ -19,8 +19,8 @@ jest.mock('fs', () => ({
   mkdirSync: jest.fn()
 }));
 
-// Mock libsodium
-jest.mock('libsodium-wrappers', () => ({
+// Mock libsodium-wrappers-sumo
+jest.mock('libsodium-wrappers-sumo', () => ({
   ready: Promise.resolve(),
   crypto_pwhash_SALTBYTES: 16,
   crypto_pwhash_OPSLIMIT_MODERATE: 4,
@@ -82,7 +82,7 @@ describe('EncryptedDatabaseService salt initialisation', () => {
     // Verify the success and that salt file was created
     expect(success).toBe(true);
     expect(fs.writeFileSync).toHaveBeenCalled();
-    expect(libsodium.randombytes_buf).toHaveBeenCalled();
+    expect(sodium.randombytes_buf).toHaveBeenCalled();
     expect(encryptedDatabase.isUnlocked()).toBe(true);
     
     // Clean up

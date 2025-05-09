@@ -32,6 +32,7 @@
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^3.7.2",
     "@types/jest": "^29.5.14",
+    "@types/libsodium-wrappers-sumo": "^0.7.8",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@vitejs/plugin-react": "^4.4.1",
@@ -52,6 +53,7 @@
     "framer-motion": "11.0",
     "keytar": "^7.9.0",
     "libsodium-wrappers": "^0.7.13",
+    "libsodium-wrappers-sumo": "^0.7.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "winston": "^3.10.0"
