@@ -127,6 +127,23 @@ const setupIpcHandlers = () => {
     }
   });
   
+  /** Touch-ID setup: store pw + flip flag */
+  ipcMain.handle('auth:setupTouchId', async (_, password:string) => {
+    try {
+      if (!keychainService.isTouchIdSupported()) {
+        logger.warn('[TouchID] setup attempted on unsupported device');
+        return false;
+      }
+      await keychainService.storeMasterPassword(password);      // 1️⃣
+      await keychainService.setTouchIdEnabled(true);            // 2️⃣
+      logger.info('[TouchID] Enabled via IPC');
+      return true;
+    } catch (err) {
+      logger.error('[TouchID] setup failed:', err);
+      return false;
+    }
+  });
+  
   ipcMain.handle('auth:authenticateWithTouchId', async () => {
     try {
       const success = await keychainService.authenticateWithTouchId();

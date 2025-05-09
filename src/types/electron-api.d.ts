@@ -20,6 +20,7 @@ declare global {
       isTouchIdSupported: () => Promise<boolean>;
       isTouchIdEnabled: () => Promise<boolean>;
       setTouchIdEnabled: (enabled: boolean) => Promise<boolean>;
+      setupTouchId: (password: string) => Promise<boolean>;
       authenticateWithTouchId: () => Promise<boolean>;
       
       // Database access

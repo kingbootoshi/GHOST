@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isTouchIdSupported: () => ipcRenderer.invoke('auth:isTouchIdSupported'),
   isTouchIdEnabled: () => ipcRenderer.invoke('auth:isTouchIdEnabled'),
   setTouchIdEnabled: (enabled: boolean) => ipcRenderer.invoke('auth:setTouchIdEnabled', enabled),
+  setupTouchId: (pwd:string) => ipcRenderer.invoke('auth:setupTouchId', pwd),
   authenticateWithTouchId: () => ipcRenderer.invoke('auth:authenticateWithTouchId'),
   
   // Database access (with proper validation in main process)
@@ -66,6 +67,7 @@ export type ElectronAPI = {
   isTouchIdSupported: () => Promise<boolean>;
   isTouchIdEnabled: () => Promise<boolean>;
   setTouchIdEnabled: (enabled: boolean) => Promise<boolean>;
+  setupTouchId: (password:string) => Promise<boolean>;
   authenticateWithTouchId: () => Promise<boolean>;
   
   // Database access

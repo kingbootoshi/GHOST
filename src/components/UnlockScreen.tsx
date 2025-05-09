@@ -13,6 +13,7 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ onUnlock, onTouchIdAuth }) 
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isTouchIdSupported, setIsTouchIdSupported] = useState<boolean>(false);
+  const [isTouchIdEnabled, setIsTouchIdEnabled] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false);
   const [confirmPassword, setConfirmPassword] = useState<string>('');
@@ -24,7 +25,10 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ onUnlock, onTouchIdAuth }) 
       try {
         const isSupported = await window.electronAPI.isTouchIdSupported();
         const isEnabled = await window.electronAPI.isTouchIdEnabled();
-        setIsTouchIdSupported(isSupported && isEnabled);
+        // We want to know if it's supported at the hardware level (for enable button)
+        // but only enable the "Unlock with Touch ID" button if both supported and enabled
+        setIsTouchIdSupported(isSupported);
+        setIsTouchIdEnabled(isEnabled);
       } catch (error) {
         console.error('Failed to check Touch ID support:', error);
       }
@@ -130,7 +134,7 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ onUnlock, onTouchIdAuth }) 
           {isLoading ? 'Loading...' : isCreatingNew ? 'Create' : 'Unlock'}
         </button>
         
-        {isTouchIdSupported && !isCreatingNew && (
+        {isTouchIdSupported && isTouchIdEnabled && !isCreatingNew && (
           <button 
             type="button" 
             className="touch-id-button"
@@ -138,6 +142,27 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ onUnlock, onTouchIdAuth }) 
             disabled={isLoading}
           >
             <span>Unlock with Touch ID</span>
+          </button>
+        )}
+        
+        {isTouchIdSupported && !isTouchIdEnabled && !isCreatingNew && (
+          <button
+            type="button"
+            className="touch-id-button"
+            disabled={isLoading || !password}
+            onClick={async () => {
+              setIsLoading(true);
+              const ok = await window.electronAPI.setupTouchId(password);
+              setIsLoading(false);
+              if (!ok) {
+                setError('Failed to enable Touch ID — check log.');
+              } else {
+                console.debug('[UI] TouchID enable result', ok);
+                setIsTouchIdEnabled(true);
+              }
+            }}
+          >
+            Enable Touch ID
           </button>
         )}
         
