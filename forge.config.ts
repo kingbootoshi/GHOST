@@ -10,6 +10,7 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    asarUnpack: ["**/better-sqlite3-multiple-ciphers/**"],
   },
   rebuildConfig: {},
   makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
@@ -25,7 +26,7 @@ const config: ForgeConfig = {
           target: 'main',
         },
         {
-          entry: 'src/preload.ts',
+          entry: 'src/preload/index.ts',
           config: 'vite.preload.config.ts',
           target: 'preload',
         },

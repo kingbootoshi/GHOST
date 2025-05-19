@@ -9,7 +9,8 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "postinstall": "electron-rebuild -w better-sqlite3-multiple-ciphers"
   },
   "keywords": [],
   "author": {
@@ -27,10 +28,18 @@
     "@electron-forge/plugin-fuses": "^7.8.1",
     "@electron-forge/plugin-vite": "^7.8.1",
     "@electron/fuses": "^1.8.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/electron-squirrel-startup": "^1.0.2",
+    "@types/keytar": "^4.4.0",
+    "@types/libsodium-wrappers": "^0.7.14",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
+    "@vitejs/plugin-react": "^4.4.1",
     "electron": "36.2.1",
+    "electron-rebuild": "^3.2.9",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.31.0",
     "ts-node": "^10.9.2",
@@ -38,6 +47,14 @@
     "vite": "^5.4.19"
   },
   "dependencies": {
-    "electron-squirrel-startup": "^1.0.1"
+    "better-sqlite3-multiple-ciphers": "^11.10.0",
+    "electron-log": "^5.4.0",
+    "electron-squirrel-startup": "^1.0.1",
+    "keytar": "^7.9.0",
+    "libsodium-wrappers": "^0.7.15",
+    "libsodium-wrappers-sumo": "^0.7.15",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "uuid": "^11.1.0"
   }
 }
