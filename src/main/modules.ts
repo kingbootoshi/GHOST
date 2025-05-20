@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import logger from 'electron-log';
+import logger from './utils/logger';
 import Database from 'better-sqlite3-multiple-ciphers';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -51,6 +51,13 @@ class ModuleRegistry {
         .filter(dirent => dirent.isDirectory());
       
       for (const folder of moduleFolders) {
+        // --- NEW: attempt to resolve compiled JS path first in dev ---
+        const compiledPath = this.resolveCompiledPath(folder.name);
+        if (compiledPath) {
+          await this.loadModule(compiledPath);
+          continue; // skip further resolution if compiled module found
+        }
+
         // Check for both .js and .ts files depending on environment
         const jsPath = path.join(modulesDir, folder.name, 'index.js');
         const tsPath = path.join(modulesDir, folder.name, 'index.ts');
@@ -66,6 +73,24 @@ class ModuleRegistry {
     } catch (error) {
       logger.error('Error loading modules:', error);
     }
+  }
+
+  /**
+   * Attempts to resolve the location of a dev-time compiled plugin.
+   * When running the main process via Vite (development), compiled plugins
+   * are emitted to `.vite/modules/<plugin>/index.js`.  This helper checks
+   * that location first so we avoid importing raw TypeScript which Node
+   * cannot execute natively.
+   *
+   * @param {string} pluginName – Directory name of the plugin (e.g., "echo")
+   * @returns {string | null} Absolute path to the compiled JS or `null` if it
+   * does not exist.
+   */
+  private resolveCompiledPath(pluginName: string): string | null {
+    // `__dirname` points to `.vite/build` in development so we backtrack to
+    // project root and then into `.vite/modules`.
+    const candidate = path.join(__dirname, '..', '..', '.vite', 'modules', pluginName, 'index.js');
+    return fs.existsSync(candidate) ? candidate : null;
   }
 
   private async loadModule(modulePath: string) {

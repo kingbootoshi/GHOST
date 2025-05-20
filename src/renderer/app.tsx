@@ -3,28 +3,51 @@ import ReactDOM from 'react-dom/client';
 import { Onboarding } from './views/Onboarding';
 import { Unlock } from './views/Unlock';
 import { Chat } from './views/Chat';
+import { BiometricAuth } from './views/BiometricAuth';
 import './index.css';
 import { AuthState } from '../types';
 
-type AppView = 'loading' | 'onboarding' | 'unlock' | 'chat';
+type AppView = 'loading' | 'onboarding' | 'unlock' | 'biometricAuth' | 'chat';
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>('loading');
   const [authState, setAuthState] = useState<AuthState | null>(null);
+  const [bioAttempted, setBioAttempted] = useState(false);
 
   useEffect(() => {
     checkAuthState();
+
+    // Listen for auto biometric done event sent from the main process.
+    const doneHandler = (e: Event) => {
+      const detail = (e as CustomEvent<{ success: boolean }>).detail;
+      console.debug('[App] auto-bio-done', detail);
+      if (detail?.success) {
+        setCurrentView('chat');
+      } else {
+        setCurrentView('unlock');
+      }
+      checkAuthState();
+    };
+
+    window.addEventListener('ghost:auto-bio-done', doneHandler);
+    return () => window.removeEventListener('ghost:auto-bio-done', doneHandler);
   }, []);
 
   const checkAuthState = async () => {
     try {
+      console.debug('[App] getAuthState()');
       const state = await window.ghost.getAuthState();
+      console.debug('[App] AuthState', state);
       setAuthState(state);
       
       if (state.isFirstRun) {
         setCurrentView('onboarding');
       } else if (!state.isUnlocked) {
-        setCurrentView('unlock');
+        if (state.biometricEnabled && !bioAttempted) {
+          setCurrentView('biometricAuth');
+        } else {
+          setCurrentView('unlock');
+        }
       } else {
         setCurrentView('chat');
       }
@@ -69,6 +92,18 @@ function App() {
       )}
       {currentView === 'chat' && (
         <Chat onLock={handleLocked} />
+      )}
+      {currentView === 'biometricAuth' && (
+        <BiometricAuth onResult={(success) => {
+          // Mark that we've attempted biometric auth for this session
+          setBioAttempted(true);
+          if (success) {
+            setCurrentView('chat');
+            checkAuthState();
+          } else {
+            setCurrentView('unlock');
+          }
+        }} />
       )}
     </div>
   );

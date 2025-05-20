@@ -1,8 +1,10 @@
 import { app, BrowserWindow, globalShortcut } from 'electron';
-import logger from 'electron-log';
+import logger, { setupRendererLogging } from './utils/logger';
 import * as path from 'path';
 import { setupIPC } from './ipc';
-import { lockDB } from './db';
+import { lockDB, getDB } from './db';
+import { canUseTouchID } from './auth';
+import * as keytar from 'keytar';
 
 // Vite plugin for Electron defines these globals at build time. Declaring
 // them here prevents TypeScript/ESLint complaints while still allowing the
@@ -59,6 +61,9 @@ const createWindow = () => {
 
 // This method will be called when Electron has finished initialization
 app.on('ready', () => {
+  // Register IPC relay for renderer logs BEFORE anything else touches IPC
+  setupRendererLogging();
+
   logger.info('App ready');
   
   // Set up IPC handlers
@@ -66,6 +71,29 @@ app.on('ready', () => {
   
   // Create window
   createWindow();
+  
+  // After creating the window, attempt automatic biometric unlock if
+  // the feature is enabled and the database is still locked.
+  (async () => {
+    try {
+      if (getDB() || !mainWindow) return; // Already unlocked or no window
+
+      const biometricAvailable = await canUseTouchID();
+      if (!biometricAvailable) return;
+
+      const keyExists = await keytar.getPassword('ghost.e2e', 'master');
+      if (keyExists) {
+        logger.info('[BIO] Auto biometric attempt queued');
+        mainWindow.webContents.once('did-finish-load', () => {
+          mainWindow!.webContents.send('auto-bio-start');
+        });
+      } else {
+        logger.verbose('[BIO] No key in keychain – skip auto login');
+      }
+    } catch (error) {
+      logger.error('[BIO] Failed to queue auto biometric attempt', error as Error);
+    }
+  })();
   
   // Register global shortcut (Cmd+Shift+G on macOS, Ctrl+Shift+G on others)
   const shortcut = process.platform === 'darwin' ? 'Cmd+Shift+G' : 'Ctrl+Shift+G';

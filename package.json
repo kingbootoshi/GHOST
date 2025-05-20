@@ -5,9 +5,10 @@
   "description": "My Electron application description",
   "main": ".vite/build/main.js",
   "scripts": {
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
+    "dev:plugins": "esbuild \"src/modules/**/index.ts\" --outdir=.vite/modules --outbase=src/modules --format=cjs --platform=node --sourcemap",
+    "start": "npm run dev:plugins && electron-forge start",
+    "package": "npm run dev:plugins && electron-forge package",
+    "make": "npm run dev:plugins && electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx .",
     "postinstall": "electron-rebuild -w better-sqlite3-multiple-ciphers"
@@ -40,6 +41,7 @@
     "@vitejs/plugin-react": "^4.4.1",
     "electron": "36.2.1",
     "electron-rebuild": "^3.2.9",
+    "esbuild": "^0.21.0",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.31.0",
     "ts-node": "^10.9.2",
@@ -48,13 +50,14 @@
   },
   "dependencies": {
     "better-sqlite3-multiple-ciphers": "^11.10.0",
-    "electron-log": "^5.4.0",
     "electron-squirrel-startup": "^1.0.1",
     "keytar": "^7.9.0",
     "libsodium-wrappers": "^0.7.15",
     "libsodium-wrappers-sumo": "^0.7.15",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0",
+    "electron-log": "^5.4.0"
   }
 }

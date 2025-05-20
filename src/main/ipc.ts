@@ -1,10 +1,9 @@
 import { ipcMain } from 'electron';
-import logger from 'electron-log';
-import { openEncryptedDB, lockDB, getDB, isDatabaseExists } from './db';
-import { maybeGetKeyFromTouchID, storeKeyInKeychain, canUseTouchID } from './auth';
+import logger from './utils/logger';
+import { openEncryptedDB, lockDB, getDB, isDatabaseExists, getCachedPassphrase } from './db';
+import { maybeGetKeyFromTouchID, storeKeyInKeychain, removeKeyFromKeychain, canUseTouchID, setBiometricFlags, getBiometricFlags } from './auth';
 import { moduleRegistry } from './modules';
 import { v4 as uuidv4 } from 'uuid';
-import * as keytar from 'keytar';
 
 // Shared application-wide types
 import { ChatMessage, AuthState } from '../types';
@@ -17,13 +16,12 @@ export function setupIPC() {
       const db = await openEncryptedDB(password);
       await moduleRegistry.loadModules(db);
       
-      // Check if biometric is available and ask to enable
+      // Check if biometrics are available so the renderer can prompt.
       const canBiometric = await canUseTouchID();
-      if (canBiometric) {
-        // Store the password for biometric unlock
-        await storeKeyInKeychain(password);
-      }
-      
+
+      // Ensure initial flags exist (defaults handled in migration).
+      await setBiometricFlags(false, false);
+
       return { success: true, canBiometric };
     } catch (error) {
       // TypeScript treats caught errors as unknown, cast to Error for logging
@@ -69,24 +67,55 @@ export function setupIPC() {
     logger.info('IPC: get-auth-state called');
     const db = getDB();
     const canBiometric = await canUseTouchID();
-    
-    // Check if password is stored in keychain
-    let biometricEnabled = false;
-    if (canBiometric) {
-      try {
-        const key = await keytar.getPassword('ghost.e2e', 'master');
-        biometricEnabled = !!key;
-      } catch (error) {
-        logger.error('Error checking keychain:', error as Error);
-      }
-    }
+    const { enabled: biometricEnabled, declined: biometricDeclined } = await getBiometricFlags();
     
     return {
       isUnlocked: db !== null,
       isFirstRun: !isDatabaseExists(),
       canUseBiometric: canBiometric,
-      biometricEnabled
+      biometricEnabled,
+      biometricDeclined
     } as AuthState;
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // Biometric opt-in / opt-out handlers
+  // ────────────────────────────────────────────────────────────────
+
+  ipcMain.handle('ghost:enable-biometric', async () => {
+    logger.info('[BIO] enableBiometric IPC start');
+
+    // Ensure DB is unlocked so we can read/write system_info.
+    const db = getDB();
+    if (!db) {
+      return { success: false, error: 'Database locked' };
+    }
+
+    const passphrase = getCachedPassphrase();
+    if (!passphrase) {
+      return { success: false, error: 'Passphrase not cached' };
+    }
+
+    const stored = await storeKeyInKeychain(passphrase);
+    if (!stored) {
+      logger.error('[BIO] Failed to store key in Keychain');
+      return { success: false, error: 'Keychain error' };
+    }
+
+    await setBiometricFlags(true, false);
+    return { success: true };
+  });
+
+  ipcMain.handle('ghost:disable-biometric', async () => {
+    logger.info('[BIO] disableBiometric IPC start');
+
+    const removed = await removeKeyFromKeychain();
+    if (!removed) {
+      return { success: false, error: 'Failed to delete key from Keychain' };
+    }
+
+    await setBiometricFlags(false, true);
+    return { success: true };
   });
 
   // Chat operations

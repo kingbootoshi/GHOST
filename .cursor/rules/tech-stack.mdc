@@ -1,0 +1,60 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# GHOST Technical Stack Documentation
+
+## Core Framework & Runtime
+- **Electron:** Desktop application framework (v36.2.1)
+- **TypeScript:** Statically typed JavaScript
+- **Vite:** Build tool and development server
+- **React/React DOM:** UI framework (v19.1.0)
+
+## Architecture
+- **Main Process:** Core application logic (`src/main/`)
+- **Preload Scripts:** Secure bridge between main and renderer (`src/preload/`)
+- **Renderer Process:** UI layer using React (`src/renderer/`)
+- **Modules System:** Extensible plugin architecture (`src/modules/`)
+
+## Security & Storage
+- **SQLite:** Local database using better-sqlite3-multiple-ciphers
+- **AES-256-CBC:** Database encryption
+- **Argon2id:** Password-based key derivation (via libsodium)
+- **Keytar:** Secure credential storage in system keychain
+- **Biometric Authentication:** Touch ID integration for unlocking
+
+## Development Tools
+- **Electron Forge:** Build and packaging toolchain
+- **ESLint:** Code quality and style enforcement
+- **TypeScript ESLint:** TypeScript-specific linting
+
+## Data Flow
+- **IPC Communication:** Secure messaging between main and renderer processes
+- **WAL Mode:** Write-Ahead Logging for database performance and reliability
+
+## Logging
+- **electron-log:** Consistent logging across main and renderer processes
+
+## Build & Packaging
+- **electron-forge makers:** Platform-specific package builders (deb, rpm, squirrel, zip)
+- **electron-forge plugins:** Additional build capabilities (auto-unpack-natives, fuses, vite)
+
+## Additional Dependencies
+- **UUID:** Generation of unique identifiers
+- **Sodium/libsodium:** Cryptographic operations
+
+## Application Structure
+- **src/main:** Main process code
+- **src/preload:** Preload scripts for secure IPC
+- **src/renderer:** UI components and logic
+- **src/modules:** Extensible plugin system
+- **src/types:** TypeScript type definitions
+
+## Development Workflow
+- **npm start:** Launch development environment
+- **npm run package:** Create application package
+- **npm run make:** Build distributable installers
+- **npm run publish:** Publish application
+- **npm run lint:** Run code linting

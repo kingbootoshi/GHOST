@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { EnableBiometricModal } from '../components/EnableBiometricModal';
 
 interface OnboardingProps {
   onPasswordCreated: () => void;
@@ -9,6 +10,7 @@ export function Onboarding({ onPasswordCreated }: OnboardingProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showBioModal, setShowBioModal] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +30,11 @@ export function Onboarding({ onPasswordCreated }: OnboardingProps) {
     try {
       const result = await window.ghost.createPassword(password);
       if (result.success) {
-        onPasswordCreated();
+        if (result.canBiometric) {
+          setShowBioModal(true);
+        } else {
+          onPasswordCreated();
+        }
       } else {
         setError(result.error || 'Failed to set password');
       }
@@ -40,6 +46,7 @@ export function Onboarding({ onPasswordCreated }: OnboardingProps) {
   };
 
   return (
+    <>
     <div className="onboarding-container">
       <h1>Welcome to GHOST</h1>
       <p>Set up your master password to encrypt your data</p>
@@ -87,5 +94,15 @@ export function Onboarding({ onPasswordCreated }: OnboardingProps) {
         </ul>
       </div>
     </div>
+    {showBioModal && (
+      <EnableBiometricModal
+        onClose={() => onPasswordCreated()}
+        onEnabled={() => {
+          setShowBioModal(false);
+          onPasswordCreated();
+        }}
+      />
+    )}
+    </>
   );
 }

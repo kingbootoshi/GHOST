@@ -30,4 +30,6 @@ export interface AuthState {
   canUseBiometric: boolean;
   /** Whether the user has enabled biometric unlock */
   biometricEnabled: boolean;
+  /** Whether the user explicitly declined biometric usage */
+  biometricDeclined: boolean;
 } 

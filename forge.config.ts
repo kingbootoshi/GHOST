@@ -9,8 +9,15 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: true,
-    asarUnpack: ["**/better-sqlite3-multiple-ciphers/**"],
+    // Electron Packager expects an `asar` object when you need advanced
+    // options like pattern-based unpacking.
+    // `unpack` accepts a glob string; multiple globs can be comma-separated.
+    asar: {
+      unpack: [
+        "**/better-sqlite3-multiple-ciphers/**",
+        ".vite/modules/**",
+      ].join(','),
+    },
   },
   rebuildConfig: {},
   makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],

@@ -1,12 +1,13 @@
 import Database from 'better-sqlite3-multiple-ciphers';
 import sodium from 'libsodium-wrappers-sumo';
-import logger from 'electron-log';
+import logger from './utils/logger';
 import { app } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 
 let db: Database.Database | null = null;
 let keyBuffer: Uint8Array | null = null;
+let cachedPassphrase: string | null = null;
 
 const DB_PATH = path.join(app.getPath('userData'), 'ghost.db');
 const SALT_PATH = path.join(app.getPath('userData'), 'ghost.salt');
@@ -32,6 +33,7 @@ async function loadOrGenerateSalt(): Promise<Uint8Array> {
 
 export async function openEncryptedDB(passphrase: string): Promise<Database.Database> {
   try {
+    cachedPassphrase = passphrase;
     await sodium.ready;
     
     const salt = await loadOrGenerateSalt();
@@ -99,6 +101,10 @@ export function lockDB(): void {
     keyBuffer = null;
     logger.info('Key material zeroized');
   }
+
+  if (cachedPassphrase) {
+    cachedPassphrase = null;
+  }
 }
 
 export function getDB(): Database.Database | null {
@@ -107,4 +113,8 @@ export function getDB(): Database.Database | null {
 
 export function isDatabaseExists(): boolean {
   return fs.existsSync(DB_PATH);
+}
+
+export function getCachedPassphrase(): string | null {
+  return cachedPassphrase;
 }

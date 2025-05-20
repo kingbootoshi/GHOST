@@ -1,6 +1,6 @@
 import { systemPreferences } from 'electron';
 import * as keytar from 'keytar';
-import logger from 'electron-log';
+import logger from './utils/logger';
 
 const KEYCHAIN_SERVICE = 'ghost.e2e';
 const KEYCHAIN_ACCOUNT = 'master';
@@ -71,4 +71,63 @@ export interface AuthState {
   currentState: AppState;
   isBiometricEnabled: boolean;
   isFirstRun: boolean;
+}
+
+/**
+ * Persists the biometric preference flags in the `system_info` table.
+ * Uses an UPSERT so the same code path works for both first‐time insert and updates.
+ *
+ * @param {boolean} enabled   - Whether biometric unlock is enabled
+ * @param {boolean} declined  - Whether the user has explicitly declined biometrics
+ * @returns {Promise<void>}   Resolves once the values are written
+ */
+export async function setBiometricFlags(enabled: boolean, declined: boolean): Promise<void> {
+  // Lazy import to avoid circular dependency issues
+  const { getDB } = await import('./db');
+
+  const db = getDB();
+  if (!db) {
+    throw new Error('Database must be unlocked before setting biometric flags');
+  }
+
+  // Coerce booleans to SQLite‐friendly strings
+  const enabledVal = enabled ? '1' : '0';
+  const declinedVal = declined ? '1' : '0';
+
+  db.prepare(
+    `INSERT INTO system_info (key, value)
+       VALUES ('biometric_enabled', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value;`
+  ).run(enabledVal);
+
+  db.prepare(
+    `INSERT INTO system_info (key, value)
+       VALUES ('biometric_declined', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value;`
+  ).run(declinedVal);
+}
+
+/**
+ * Retrieves the biometric preference flags from the database.
+ * Falls back to sensible defaults (`false`) when the keys are not present
+ * (e.g. fresh install before migration runs).
+ *
+ * @returns {Promise<{ enabled: boolean; declined: boolean }>} Current flag values
+ */
+export async function getBiometricFlags(): Promise<{ enabled: boolean; declined: boolean }> {
+  const { getDB } = await import('./db');
+  const db = getDB();
+
+  if (!db) {
+    // If DB is not unlocked yet we can't read flags – default to disabled.
+    return { enabled: false, declined: false };
+  }
+
+  const rowEnabled = db.prepare(`SELECT value FROM system_info WHERE key = 'biometric_enabled'`).get() as { value?: string } | undefined;
+  const rowDeclined = db.prepare(`SELECT value FROM system_info WHERE key = 'biometric_declined'`).get() as { value?: string } | undefined;
+
+  return {
+    enabled: rowEnabled?.value === '1',
+    declined: rowDeclined?.value === '1',
+  };
 }
