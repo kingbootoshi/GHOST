@@ -11,6 +11,8 @@ interface GhostAPI {
   sendChat: (text: string) => Promise<ChatMessage>;
   enableBiometric: () => Promise<{ success: boolean; error?: string }>;
   disableBiometric: () => Promise<{ success: boolean; error?: string }>;
+  listModules: () => Promise<any[]>;
+  invokeModule: (moduleId: string, fn: string, args: any) => Promise<any>;
 }
 
 // Expose the API to the renderer process
@@ -22,7 +24,9 @@ contextBridge.exposeInMainWorld('ghost', {
   getChatLog: () => ipcRenderer.invoke('ghost:get-chat-log'),
   sendChat: (text: string) => ipcRenderer.invoke('ghost:send-chat', text),
   enableBiometric: () => ipcRenderer.invoke('ghost:enable-biometric'),
-  disableBiometric: () => ipcRenderer.invoke('ghost:disable-biometric')
+  disableBiometric: () => ipcRenderer.invoke('ghost:disable-biometric'),
+  listModules: () => ipcRenderer.invoke('ghost:list-modules'),
+  invokeModule: (moduleId: string, fn: string, args: any) => ipcRenderer.invoke('ghost:invoke-module', moduleId, fn, args)
 } as GhostAPI);
 
 // Forward one-shot event when the main process wants to kick off automatic

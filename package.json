@@ -5,10 +5,9 @@
   "description": "My Electron application description",
   "main": ".vite/build/main.js",
   "scripts": {
-    "dev:plugins": "esbuild \"src/modules/**/index.ts\" --outdir=.vite/modules --outbase=src/modules --format=cjs --platform=node --sourcemap",
-    "start": "npm run dev:plugins && electron-forge start",
-    "package": "npm run dev:plugins && electron-forge package",
-    "make": "npm run dev:plugins && electron-forge make",
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx .",
     "postinstall": "electron-rebuild -w better-sqlite3-multiple-ciphers"

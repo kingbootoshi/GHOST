@@ -3,6 +3,11 @@ import { AssistantModule, ModuleContext } from '../../main/modules';
 const echoModule: AssistantModule = {
   id: 'echo',
   
+  meta: {
+    title: 'Echo',
+    icon: '🗣️'
+  },
+  
   schema: `
     CREATE TABLE IF NOT EXISTS echo_log (
       id TEXT PRIMARY KEY,
@@ -25,6 +30,20 @@ const echoModule: AssistantModule = {
     },
     handler: async ({ text }: { text: string }) => {
       return text;
+    }
+  },
+  {
+    name: 'get-log',
+    description: 'Returns the last 50 echo messages',
+    parameters: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false
+    },
+    handler: async (_args: unknown, _ctx?: unknown) => {
+      // `ctx` is unused here because we inject DB logic in `init` where we
+      // have access to the ModuleContext.
+      return [];
     }
   }],
   
@@ -51,6 +70,17 @@ const echoModule: AssistantModule = {
       ctx.log.info(`Echo logged: ${args.text}`);
       return result;
     };
+
+    // Wire up get-log handler now that we have DB access
+    const getLog = async () => {
+      const rows = ctx.db
+        .prepare(`SELECT text, ts FROM echo_log ORDER BY ts DESC LIMIT 50`)
+        .all() as Array<{ text: string; ts: number }>;
+      return rows.map((r) => ({ text: r.text, ts: r.ts }));
+    };
+
+    // Index 1 because we pushed reply earlier
+    this.functions[1].handler = async () => getLog();
   }
 };
 

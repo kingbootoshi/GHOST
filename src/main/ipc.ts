@@ -171,4 +171,25 @@ export function setupIPC() {
     
     return assistantMessage;
   });
+
+  // ────────────────────────────────────────────────────────────────
+  // Module registry – list & invoke
+  // ────────────────────────────────────────────────────────────────
+
+  ipcMain.handle('ghost:list-modules', () => {
+    logger.debug('[IPC] list-modules');
+    return moduleRegistry.listModules();
+  });
+
+  ipcMain.handle('ghost:invoke-module', async (_event, moduleId: string, fn: string, args: any) => {
+    logger.debug('[IPC] invoke-module %s.%s', moduleId, fn);
+    try {
+      const result = await moduleRegistry.invoke(moduleId, fn, args);
+      return { success: true, data: result };
+    } catch (error) {
+      const err = error as Error;
+      logger.error('[IPC] invoke-module error:', err);
+      return { success: false, error: err.message };
+    }
+  });
 }
