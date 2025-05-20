@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Onboarding } from './views/Onboarding';
 import { Unlock } from './views/Unlock';
-import { Chat } from './views/Chat';
+import { Dashboard } from './views/Dashboard';
 import { BiometricAuth } from './views/BiometricAuth';
 import './index.css';
 import { AuthState } from '../types';
 
-type AppView = 'loading' | 'onboarding' | 'unlock' | 'biometricAuth' | 'chat';
+type AppView = 'loading' | 'onboarding' | 'unlock' | 'biometricAuth' | 'dashboard';
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>('loading');
@@ -22,7 +22,7 @@ function App() {
       const detail = (e as CustomEvent<{ success: boolean }>).detail;
       console.debug('[App] auto-bio-done', detail);
       if (detail?.success) {
-        setCurrentView('chat');
+        setCurrentView('dashboard');
       } else {
         setCurrentView('unlock');
       }
@@ -49,7 +49,7 @@ function App() {
           setCurrentView('unlock');
         }
       } else {
-        setCurrentView('chat');
+        setCurrentView('dashboard');
       }
     } catch (error) {
       console.error('Failed to check auth state:', error);
@@ -62,7 +62,7 @@ function App() {
   };
 
   const handleUnlocked = () => {
-    setCurrentView('chat');
+    setCurrentView('dashboard');
   };
 
   const handleLocked = () => {
@@ -90,15 +90,15 @@ function App() {
           biometricEnabled={authState?.biometricEnabled}
         />
       )}
-      {currentView === 'chat' && (
-        <Chat onLock={handleLocked} />
+      {currentView === 'dashboard' && (
+        <Dashboard />
       )}
       {currentView === 'biometricAuth' && (
         <BiometricAuth onResult={(success) => {
           // Mark that we've attempted biometric auth for this session
           setBioAttempted(true);
           if (success) {
-            setCurrentView('chat');
+            setCurrentView('dashboard');
             checkAuthState();
           } else {
             setCurrentView('unlock');

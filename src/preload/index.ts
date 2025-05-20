@@ -26,7 +26,13 @@ contextBridge.exposeInMainWorld('ghost', {
   enableBiometric: () => ipcRenderer.invoke('ghost:enable-biometric'),
   disableBiometric: () => ipcRenderer.invoke('ghost:disable-biometric'),
   listModules: () => ipcRenderer.invoke('ghost:list-modules'),
-  invokeModule: (moduleId: string, fn: string, args: any) => ipcRenderer.invoke('ghost:invoke-module', moduleId, fn, args)
+  invokeModule: async (moduleId: string, fn: string, args: any) => {
+    const res = await ipcRenderer.invoke('ghost:invoke-module', moduleId, fn, args);
+    if (res && typeof res === 'object' && 'error' in res) {
+      throw new Error(res.error);
+    }
+    return res as any;
+  }
 } as GhostAPI);
 
 // Forward one-shot event when the main process wants to kick off automatic

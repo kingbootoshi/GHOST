@@ -185,11 +185,11 @@ export function setupIPC() {
     logger.debug('[IPC] invoke-module %s.%s', moduleId, fn);
     try {
       const result = await moduleRegistry.invoke(moduleId, fn, args);
-      return { success: true, data: result };
+      return result; // raw result
     } catch (error) {
       const err = error as Error;
       logger.error('[IPC] invoke-module error:', err);
-      return { success: false, error: err.message };
+      return { error: err.message };
     }
   });
 }

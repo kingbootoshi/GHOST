@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "commonjs",
+    "module": "esnext",
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -14,7 +14,7 @@
     "jsx": "react-jsx",
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["better-sqlite3", "keytar", "react", "react-dom"]
+    "types": ["better-sqlite3", "keytar", "react", "react-dom", "vite/client"]
   },
   "include": [
     "src/**/*"

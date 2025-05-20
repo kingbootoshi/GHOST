@@ -11,18 +11,14 @@ export interface JSONSchema {
   additionalProperties?: boolean;
 }
 
-export interface ToolDef {
-  name: string;
-  description: string;
-  parameters: JSONSchema;
-  handler: (args: any) => Promise<unknown>;
-}
-
 export interface ModuleContext {
   db: Database.Database;
-  registerTool: (tool: ToolDef) => void;
   log: ReturnType<typeof logger.scope>;
+  /** Invoke another module's function */
+  invoke: (moduleId: string, fn: string, args: any) => Promise<any>;
 }
+
+export type ModuleFunction = (args: any, ctx: ModuleContext) => Promise<any>;
 
 export interface AssistantModule {
   /** Unique identifier for the module – must be stable across app restarts */
@@ -40,7 +36,7 @@ export interface AssistantModule {
   };
 
   /** Public functions exposed to IPC & other modules */
-  functions: ToolDef[];
+  functions: Record<string, ModuleFunction>;
 
   /** Optional async initialisation hook */
   init?: (ctx: ModuleContext) => Promise<void>;
@@ -48,7 +44,7 @@ export interface AssistantModule {
 
 class ModuleRegistry {
   private modules: Map<string, AssistantModule> = new Map();
-  private tools: Map<string, ToolDef> = new Map();
+  private tools: Map<string, (args: any) => Promise<any>> = new Map();
   private db: Database.Database | null = null;
 
   /**
@@ -68,7 +64,7 @@ class ModuleRegistry {
      * explicit generic.
      */
     // @ts-ignore -- handled by Vite
-    const modules = import.meta.glob<{ default: AssistantModule }>('/src/modules/**/index.{ts,js}', { eager: true });
+    const modules = import.meta.glob<{ default: AssistantModule }>('/src/modules/**/index.ts', { eager: true });
 
     for (const modEntry of Object.values(modules)) {
       const mod = (modEntry as any).default as AssistantModule;
@@ -95,8 +91,8 @@ class ModuleRegistry {
     // Prepare execution context
     const context: ModuleContext = {
       db: this.db!,
-      registerTool: (tool) => this.registerTool(module.id, tool),
       log: logger.scope(module.id),
+      invoke: (id, fn, args) => this.invoke(id, fn, args),
     };
 
     // Run optional init hook
@@ -104,19 +100,15 @@ class ModuleRegistry {
       await module.init(context);
     }
 
-    // Register public functions
-    for (const func of module.functions) {
-      this.registerTool(module.id, func);
+    // Register public functions by binding ctx
+    for (const [fnName, fn] of Object.entries(module.functions)) {
+      const bound = (args: any) => fn(args, context);
+      this.tools.set(`${module.id}.${fnName}`, bound);
+      logger.info(`Registered tool: ${module.id}.${fnName}`);
     }
 
     this.modules.set(module.id, module);
-    logger.info(`[${module.id}] ready – functions=${module.functions.length}`);
-  }
-
-  private registerTool(moduleId: string, tool: ToolDef) {
-    const fullName = `${moduleId}.${tool.name}`;
-    this.tools.set(fullName, tool);
-    logger.info(`Registered tool: ${fullName}`);
+    logger.info(`[${module.id}] ready – functions=${Object.keys(module.functions).length}`);
   }
 
   /** Returns lightweight metadata for the renderer dashboard */
@@ -139,15 +131,15 @@ class ModuleRegistry {
     if (!tool) {
       throw new Error('FUNCTION_NOT_FOUND');
     }
-    return tool.handler(args);
+    return tool(args);
   }
 
-  getTool(name: string): ToolDef | undefined {
+  getTool(name: string) {
     return this.tools.get(name);
   }
 
-  getAllTools(): ToolDef[] {
-    return Array.from(this.tools.values());
+  getAllTools() {
+    return Array.from(this.tools.keys());
   }
 }
 
