@@ -80,13 +80,14 @@ ipcMain.handle('ghost:get-auth-state', async () => {
 // modules.ts
 class ModuleRegistry {
   private modules: Map<string, AssistantModule> = new Map();
-  private tools: Map<string, ToolDef> = new Map();
+  private tools: Map<string, (args: any) => Promise<any>> = new Map();
   private db: Database | null = null;
   
   // State is rebuilt on each unlock
   async loadModules(db: Database) {
     this.db = db;
-    // Load all modules...
+    // Load all modules via import.meta.glob
+    // Register functions with context binding
   }
 }
 ```

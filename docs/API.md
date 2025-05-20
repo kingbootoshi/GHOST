@@ -145,6 +145,25 @@ const response = await window.ghost.sendChat('Hello, GHOST!');
 console.log('Assistant:', response.content);
 ```
 
+#### `ghost.invokeModule(moduleId: string, fn: string, args: any)`
+
+Invokes a function from a plugin.
+
+**Parameters:**
+- `moduleId` (string): The ID of the plugin
+- `fn` (string): The name of the function to invoke
+- `args` (any): The arguments to pass to the function
+
+**Returns:**
+```typescript
+any (whatever the called module returns)
+```
+
+**Throws:**
+```typescript
+Error('FUNCTION_NOT_FOUND' | <module-specific error>)
+```
+
 ## Plugin API
 
 ### AssistantModule Interface
@@ -153,10 +172,15 @@ The main interface that all plugins must implement.
 
 ```typescript
 interface AssistantModule {
-  id: string;              // Unique plugin identifier
-  schema: string;          // SQL schema definition
-  functions: ToolDef[];    // Exposed functions
-  init(ctx: ModuleContext): Promise<void>; // Initialization
+  id: string;                       // Stable identifier
+  schema?: string;                  // Optional SQL (executed once)
+  meta: { title: string; icon?: string };
+
+  /** Key change ↓ ------------------------------------------- */
+  functions: Record<string, ModuleFunction>;
+  /** -------------------------------------------------------- */
+
+  init?(ctx: ModuleContext): Promise<void>;
 }
 ```
 
@@ -165,10 +189,13 @@ interface AssistantModule {
 Context provided to plugins during initialization.
 
 ```typescript
+type ModuleFunction = (args: any, ctx: ModuleContext) => Promise<any>;
+
 interface ModuleContext {
-  db: Database;                        // Encrypted database connection
-  registerTool: (tool: ToolDef) => void; // Register a function
-  log: Logger;                         // Scoped logger
+  db: Database;
+  log: Logger;
+  /** NEW — call any other module tool */
+  invoke: (moduleId: string, fn: string, args: any) => Promise<any>;
 }
 ```
 

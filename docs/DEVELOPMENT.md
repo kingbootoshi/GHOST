@@ -221,12 +221,24 @@ touch src/modules/my-plugin/index.ts
 
 2. Implement the module:
 ```typescript
-import { AssistantModule } from '../../main/modules';
+import { AssistantModule, ModuleContext } from '../../main/modules';
 
 const myPlugin: AssistantModule = {
   id: 'my-plugin',
+  meta: { title: 'My Plugin', icon: '🔌' },
   schema: `CREATE TABLE IF NOT EXISTS my_table (...)`,
-  functions: [],
+  
+  functions: {
+    'get-data': async (args, ctx) => {
+      return ctx.db.prepare('SELECT * FROM my_table LIMIT 10').all();
+    },
+    
+    'store-data': async ({ content }, ctx) => {
+      ctx.db.prepare('INSERT INTO my_table (content) VALUES (?)').run(content);
+      return { success: true };
+    }
+  },
+  
   async init(ctx) {
     ctx.log.info('Plugin initialized');
   }
@@ -267,6 +279,12 @@ function Parent() {
   return <MyComponent title="Hello" />;
 }
 ```
+
+### Plugin UI Integration
+
+> **Plugin UI Loader** – when you add `src/modules/foo/ui.tsx`, it
+> will be auto-loaded by `<ModuleHost moduleId="foo" />`.  
+> **No manual import statements required.**
 
 ## Debugging
 
@@ -463,62 +481,3 @@ logger.transports.file.level = 'debug';
 ```bash
 npm version patch|minor|major
 ```
-
-### 2. Build and Test
-
-```bash
-npm run test
-npm run build
-npm run package
-```
-
-### 3. Code Signing (macOS)
-
-```bash
-# Set up certificates
-export APPLE_ID="your-apple-id"
-export APPLE_PASSWORD="your-app-specific-password"
-
-# Sign and notarize
-npm run make
-```
-
-### 4. Distribution
-
-- Upload to GitHub Releases
-- Update documentation
-- Notify users
-
-## Contributing
-
-### Pull Request Process
-
-1. Fork the repository
-2. Create feature branch
-3. Make changes with tests
-4. Run linting and tests
-5. Submit pull request
-
-### Code Review Checklist
-
-- [ ] Tests pass
-- [ ] Linting passes
-- [ ] TypeScript compiles
-- [ ] Security considered
-- [ ] Performance impact assessed
-- [ ] Documentation updated
-
-## Resources
-
-- [Electron Documentation](https://www.electronjs.org/docs)
-- [React Documentation](https://react.dev)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html)
-- [SQLite Documentation](https://www.sqlite.org/docs.html)
-- [Vite Documentation](https://vitejs.dev/guide/)
-
-## Support
-
-- GitHub Issues: Report bugs
-- Discussions: Ask questions
-- Discord: Community chat
-- Email: dev@ghost.app

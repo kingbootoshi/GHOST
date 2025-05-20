@@ -67,6 +67,7 @@ The renderer process (`src/renderer/`) contains:
 - View components for different app states
 - Hooks for state management
 - All UI logic and styling
+- Plugin UIs are discovered at build time via `import.meta.glob('/src/modules/*/ui.tsx')` to eliminate run-time `require()`.
 
 ## Data Flow
 
@@ -74,7 +75,7 @@ The renderer process (`src/renderer/`) contains:
 2. **IPC Call** → Renderer invokes preload API
 3. **Main Handler** → Main process handles request
 4. **Database Operation** → Encrypted read/write if needed
-5. **Response** → Result sent back through IPC
+5. **Response** → Raw result sent back through IPC (no wrapper)
 6. **UI Update** → Renderer updates based on response
 
 ## Security Architecture
@@ -127,9 +128,10 @@ Plugins are isolated modules that:
 ```typescript
 interface AssistantModule {
   id: string;                    // Unique identifier
-  schema: string;                // SQL schema definition
-  functions: ToolDef[];          // Available functions
-  init(ctx: ModuleContext): Promise<void>;  // Initialization
+  schema?: string;               // SQL schema definition
+  meta: { title: string; icon?: string }; // UI metadata
+  functions: Record<string, ModuleFunction>; // Available functions
+  init?(ctx: ModuleContext): Promise<void>;  // Initialization
 }
 ```
 

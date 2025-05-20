@@ -18,9 +18,10 @@ GHOST's plugin system allows developers to extend the application with new AI ca
 ```typescript
 interface AssistantModule {
   id: string;                            // Unique identifier
-  schema: string;                        // SQL CREATE statements
-  functions: ToolDef[];                  // Exposed functions
-  init(ctx: ModuleContext): Promise<void>; // Initialization hook
+  schema?: string;                       // SQL CREATE statements
+  meta: { title: string; icon?: string };  // UI metadata
+  functions: Record<string, ModuleFunction>; // Exposed functions
+  init?(ctx: ModuleContext): Promise<void>; // Initialization hook
 }
 ```
 
@@ -39,42 +40,47 @@ src/modules/my-plugin/
 ### 2. Basic Plugin Example
 
 ```typescript
-// src/modules/my-plugin/index.ts
+// src/modules/echo/index.ts
 import { AssistantModule, ModuleContext } from '../../main/modules';
 
-const myPlugin: AssistantModule = {
-  id: 'my-plugin',
-  
-  schema: `
-    CREATE TABLE IF NOT EXISTS my_plugin_data (
-      id TEXT PRIMARY KEY,
-      content TEXT NOT NULL,
-      created_at INTEGER DEFAULT (strftime('%s', 'now'))
-    );
-  `,
-  
-  functions: [{
-    name: 'store-data',
-    description: 'Stores data in the plugin table',
-    parameters: {
-      type: 'object',
-      properties: {
-        content: { type: 'string' }
-      },
-      required: ['content']
+const echo: AssistantModule = {
+  id: 'echo',
+  meta: { title: 'Echo', icon: '🗣️' },
+
+  schema: `CREATE TABLE IF NOT EXISTS echo_log (
+    id TEXT PRIMARY KEY,
+    text TEXT NOT NULL,
+    ts INTEGER NOT NULL
+  );`,
+
+  functions: {
+    reply: async ({ text }: { text: string }, ctx) => {
+      ctx.db.prepare(
+        'INSERT INTO echo_log (id, text, ts) VALUES (?, ?, ?)'
+      ).run(Date.now().toString(), text, Date.now());
+      return text;
     },
-    handler: async ({ content }) => {
-      // Implementation here
-      return { success: true };
+
+    'get-log': async (_, ctx) => {
+      return ctx.db.prepare(
+        'SELECT text, ts FROM echo_log ORDER BY ts DESC LIMIT 50'
+      ).all();
     }
-  }],
-  
-  async init(ctx: ModuleContext) {
-    ctx.log.info('My plugin initialized');
+  },
+
+  async init(ctx) {
+    ctx.log.info('Echo ready');
   }
 };
 
-export default myPlugin;
+export default echo;
+```
+
+### Interop ► ctx.invoke
+
+```ts
+// inside a plugin
+const results = await ctx.invoke('echo', 'get-log', {});
 ```
 
 ### 3. Database Schema

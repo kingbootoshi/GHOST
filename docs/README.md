@@ -34,7 +34,7 @@ npm run make
 
 - **Encrypted Local Storage**: All data is encrypted using AES-256-CBC with Argon2id key derivation
 - **Touch ID Integration**: Optional biometric unlock on macOS
-- **Plugin Architecture**: Extensible system for adding AI capabilities
+- **Plugin Architecture**: Record-based function map with cross-module calls and compile-time UI loading
 - **Secure IPC**: Context-isolated communication between processes
 - **React UI**: Modern, responsive interface with dark theme
 

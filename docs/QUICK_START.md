@@ -93,13 +93,14 @@ export function MyComponent({ title }: Props) {
 // src/modules/my-plugin/index.ts
 export default {
   id: 'my-plugin',
+  meta: { title: 'My Plugin', icon: '🔌' },
   schema: 'CREATE TABLE ...',
-  functions: [{
-    name: 'myFunction',
-    handler: async (args) => {
-      // Implementation
+  functions: {
+    myFunction: async (args, ctx) => {
+      // Implementation using ctx.db, ctx.log, ctx.invoke
+      return { result: 'success' };
     }
-  }],
+  },
   init: async (ctx) => {
     ctx.log.info('Plugin ready');
   }
