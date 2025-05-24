@@ -4,6 +4,7 @@ import { Onboarding } from './views/Onboarding';
 import { Unlock } from './views/Unlock';
 import { Dashboard } from './views/Dashboard';
 import { BiometricAuth } from './views/BiometricAuth';
+import SupabaseProvider from './components/SupabaseProvider';
 import './index.css';
 import { AuthState } from '../types';
 
@@ -49,6 +50,7 @@ function App() {
           setCurrentView('unlock');
         }
       } else {
+        // After local auth is complete, show the main dashboard
         setCurrentView('dashboard');
       }
     } catch (error) {
@@ -110,4 +112,8 @@ function App() {
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root')!);
-root.render(<App />);
+root.render(
+  <SupabaseProvider>
+    <App />
+  </SupabaseProvider>
+);
