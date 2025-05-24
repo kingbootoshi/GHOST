@@ -1,54 +1,71 @@
 import React, { useState } from 'react';
 import { useModules } from '../hooks/useModules';
 import { ModuleHost } from '../components/ModuleHost';
+import { Settings } from './Settings';
+
+type ViewType = 'module' | 'settings';
 
 export const Dashboard: React.FC = () => {
   const { modules } = useModules();
-  const [active, setActive] = useState<string | null>(null);
+  const [activeModule, setActiveModule] = useState<string | null>(null);
+  const [viewType, setViewType] = useState<ViewType>('module');
 
   // Activate first module automatically when list loads
   React.useEffect(() => {
-    if (!active && modules.length) {
-      setActive(modules[0].id);
+    if (!activeModule && modules.length && viewType === 'module') {
+      setActiveModule(modules[0].id);
     }
-  }, [modules, active]);
+  }, [modules, activeModule, viewType]);
+
+  const handleModuleClick = (moduleId: string) => {
+    setActiveModule(moduleId);
+    setViewType('module');
+  };
+
+  const handleSettingsClick = () => {
+    setViewType('settings');
+  };
 
   return (
-    <div className="dashboard-root" style={{ display: 'flex', height: '100vh' }}>
+    <div className="dashboard-root">
       {/* Sidebar */}
-      <aside
-        style={{
-          width: 200,
-          borderRight: '1px solid var(--border-color, #444)',
-          padding: 8,
-          boxSizing: 'border-box',
-        }}
-      >
-        {modules.map((m) => (
+      <aside className="dashboard-sidebar">
+        <div className="sidebar-section">
+          <h3 className="sidebar-title">Modules</h3>
+          {modules.map((m) => (
+            <button
+              key={m.id}
+              className={`sidebar-item ${viewType === 'module' && activeModule === m.id ? 'active' : ''}`}
+              onClick={() => handleModuleClick(m.id)}
+            >
+              <span className="sidebar-icon">{m.icon}</span>
+              <span className="sidebar-label">{m.title}</span>
+            </button>
+          ))}
+        </div>
+        
+        <div className="sidebar-section sidebar-bottom">
           <button
-            key={m.id}
-            style={{
-              display: 'block',
-              width: '100%',
-              padding: '8px 12px',
-              marginBottom: 4,
-              textAlign: 'left',
-              background: active === m.id ? 'var(--accent-color, #555)' : 'transparent',
-              color: 'inherit',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-            onClick={() => setActive(m.id)}
+            className={`sidebar-item ${viewType === 'settings' ? 'active' : ''}`}
+            onClick={handleSettingsClick}
           >
-            <span style={{ marginRight: 6 }}>{m.icon}</span>
-            {m.title}
+            <span className="sidebar-icon">⚙️</span>
+            <span className="sidebar-label">Settings</span>
           </button>
-        ))}
+        </div>
       </aside>
 
       {/* Content */}
-      <main style={{ flex: 1, overflow: 'auto' }}>
-        {active ? <ModuleHost moduleId={active} /> : <p>Select a module…</p>}
+      <main className="dashboard-content">
+        {viewType === 'settings' ? (
+          <Settings />
+        ) : activeModule ? (
+          <ModuleHost moduleId={activeModule} />
+        ) : (
+          <div className="empty-state">
+            <p>Select a module to get started</p>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -6,7 +6,9 @@
       "Bash(mkdir:*)",
       "Bash(rm:*)",
       "Bash(npm run lint)",
-      "Bash(npm start)"
+      "Bash(npm start)",
+      "Bash(npm i:*)",
+      "Bash(npx tailwindcss init:*)"
     ],
     "deny": []
   }

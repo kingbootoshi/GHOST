@@ -1,6 +1,6 @@
-1. Get touch id flow optimized
+1. ~~Get touch id flow optimized~~ (DONE)
 2. Add powersync to sync local encrypted data to supabase database for mobile and web cross platform compatability (users on mobile/web unlock data with the master password, the supabase account system is used to only give the proper user their data. supabase login + sync should be an option to connect in settings AFTER initial app set up locally)
-3. get core AI functionality working for taking in chat and responding (set up openrouter idc about local llama right now but local fall back will be very important for offline)
+3. get core AI functionality working for taking in chat and responding (set up openrouter idc about local llama right now but local fall back will be very important for offline). note: i should probably set up a cloudflare server that can act as a chat API route for openrouter. i can use this server for reminders and notifcations too
 4. get hot key pop up to instantly write words working
 5. getting ghost in here and making the UI pretty
 

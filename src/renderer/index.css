@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -255,4 +259,236 @@ button:disabled {
 
 .input-form button {
   padding: 0.75rem 1.5rem;
+}
+
+/* Dashboard */
+.dashboard-root {
+  display: flex;
+  height: 100vh;
+  background-color: #1a1a1a;
+}
+
+.dashboard-sidebar {
+  width: 240px;
+  background-color: #0f0f0f;
+  border-right: 1px solid #2a2a2a;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.sidebar-section {
+  padding: 1rem;
+}
+
+.sidebar-section.sidebar-bottom {
+  margin-top: auto;
+  border-top: 1px solid #2a2a2a;
+}
+
+.sidebar-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #666;
+  margin-bottom: 0.5rem;
+  padding: 0 0.5rem;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.25rem;
+  background: transparent;
+  border: none;
+  border-radius: 0.375rem;
+  color: #ccc;
+  text-align: left;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.sidebar-item:hover {
+  background-color: #1a1a1a;
+  color: #fff;
+}
+
+.sidebar-item.active {
+  background-color: #2a3f5f;
+  color: #4a90e2;
+}
+
+.sidebar-icon {
+  width: 1.5rem;
+  margin-right: 0.75rem;
+  text-align: center;
+}
+
+.sidebar-label {
+  flex: 1;
+}
+
+.dashboard-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #1a1a1a;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+}
+
+/* Settings */
+.settings-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.settings-container h1 {
+  font-size: 2rem;
+  margin-bottom: 2rem;
+}
+
+.settings-header {
+  margin-bottom: 2rem;
+}
+
+.back-button {
+  background: transparent;
+  color: #4a90e2;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.back-button:hover {
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.settings-section {
+  margin-bottom: 3rem;
+}
+
+.settings-section h2 {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  color: #fff;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background-color: #2a2a2a;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.setting-info {
+  flex: 1;
+}
+
+.setting-info h3 {
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+  color: #fff;
+}
+
+.setting-info p {
+  font-size: 0.875rem;
+  color: #999;
+}
+
+.setting-status {
+  font-size: 0.75rem;
+  color: #4a90e2;
+  margin-top: 0.5rem;
+}
+
+.settings-note {
+  color: #666;
+  font-style: italic;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #444;
+  transition: 0.4s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: #4a90e2;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+/* Settings Buttons */
+.settings-button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.settings-button.primary {
+  background-color: #4a90e2;
+  color: white;
+}
+
+.settings-button.primary:hover {
+  background-color: #357abd;
+}
+
+.settings-button.secondary {
+  background-color: transparent;
+  color: #ff6b6b;
+  border: 1px solid #ff6b6b;
+}
+
+.settings-button.secondary:hover {
+  background-color: rgba(255, 107, 107, 0.1);
 }
