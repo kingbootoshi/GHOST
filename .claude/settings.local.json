@@ -12,7 +12,10 @@
       "Bash(npm view:*)",
       "WebFetch(domain:docs.powersync.com)",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__get-library-docs"
+      "mcp__context7__get-library-docs",
+      "Bash(git checkout:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(find:*)"
     ],
     "deny": []
   },

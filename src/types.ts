@@ -18,6 +18,20 @@ export interface ChatMessage {
 }
 
 /**
+ * AI Chat log entry stored in the ai_chat_log table
+ */
+export interface AiChatLog {
+  id: string;
+  user_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  tool_calls?: string;
+  _ps_version: number;
+  updated_at: number;
+  deleted: 0 | 1;
+}
+
+/**
  * Current authentication / unlock status for the running session.
  * Returned by `ghost:get-auth-state` IPC handler.
  */

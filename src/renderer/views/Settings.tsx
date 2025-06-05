@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { SupabaseLogin } from './SupabaseLogin';
 
-interface Settings {
+interface SettingsState {
   supabaseEnabled: boolean;
 }
 
@@ -13,7 +13,7 @@ interface SyncStatus {
 }
 
 export const Settings: React.FC = () => {
-  const [settings, setSettings] = useState<Settings>({
+  const [settings, setSettings] = useState<SettingsState>({
     supabaseEnabled: false
   });
   const [showSupabaseLogin, setShowSupabaseLogin] = useState(false);

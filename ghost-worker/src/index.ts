@@ -1,23 +1,29 @@
 import { verifyJWT } from './auth';
 import { AIRequestBody } from './types';
+import { log } from './logger';
+
+const MODELS = new Set([
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  '@cf/google/gemma-7b-it'
+]);
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
-    const { pathname } = new URL(req.url);
-    if (pathname !== '/chat' || req.method !== 'POST')
+    if (req.method !== 'POST' || new URL(req.url).pathname !== '/chat') {
       return new Response('not found', { status: 404 });
+    }
 
-    /* ── 1. AUTH ───────────────────────────────────────── */
+    // --- Auth --------------------------------------------------
     const token = req.headers.get('Authorization')?.split(' ')[1] ?? '';
     try {
       await verifyJWT(token, env);
-      console.debug('[AUTH] JWT ok');
-    } catch (err) {
-      console.error('[AUTH] fail', err);
+      log.debug('JWT ok');
+    } catch (e) {
+      log.warn('JWT fail', e);
       return new Response('unauthorized', { status: 401 });
     }
 
-    /* ── 2. PARSE BODY ─────────────────────────────────── */
+    // --- Parse -------------------------------------------------
     let body: AIRequestBody;
     try {
       body = await req.json();
@@ -25,32 +31,25 @@ export default {
       return new Response('bad json', { status: 400 });
     }
 
-    /* ── 3. CALL AI ────────────────────────────────────── */
-    const aiResp = await env.AI.run(
-      '@cf/meta/llama-3.3-70b-instruct-fp8-fast' as any,
-      {
-        stream: true,
-        messages: [
-          { role: 'system', content: body.system ?? 'You are Ghost AI assistant.' },
-          ...body.messages
-        ],
-        tools: [
-          {
-            name: 'echo.reply',
-            description: 'Echo text',
-            parameters: {
-              type: 'object',
-              properties: { text: { type: 'string' } },
-              required: ['text']
-            }
-          }
-        ]
-      }
-    );
+    const model = body.model ?? '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+    if (!MODELS.has(model)) {
+      return new Response('model blocked', { status: 403 });
+    }
 
-    /* ── 4. TOOL-CALL HOOK ─────────────────────────────── */
-    // NB: aiResp is a Response<ReadableStream>; clone() to read side-channel if needed.
-    // For MVP we forward tool_calls to Durable Object inside stream pump (TODO).
+    // --- Forward ----------------------------------------------
+    const aiResp = await env.AI.run(model as any, {
+      stream: true,
+      messages: [
+        { role: 'system', content: body.system ?? 'Ghost AI' },
+        ...body.messages
+      ],
+      tools: body.tools ?? [],
+      temperature: body.temperature,
+      max_tokens: body.max_tokens,
+      seed: body.seed
+    });
+
+    log.info('proxied request to %s', model);
 
     return new Response(aiResp as any, {
       headers: {
@@ -61,8 +60,3 @@ export default {
     });
   }
 } satisfies ExportedHandler<Env>;
-
-export class ReminderQueue {
-  queue: any[] = [];
-  // TODO: implement when reminder feature is prioritised
-}

@@ -16,6 +16,8 @@ interface GhostAPI {
   enableSync: (token: string) => Promise<{ success: boolean; error?: string }>;
   disableSync: () => Promise<{ success: boolean }>;
   getSyncStatus: () => Promise<{ enabled: boolean; lastSyncedAt: number | null; pendingBytes: number }>;
+  on: (channel: string, listener: (event: any, ...args: any[]) => void) => void;
+  off: (channel: string, listener: (event: any, ...args: any[]) => void) => void;
 }
 
 // Expose the API to the renderer process
@@ -38,7 +40,20 @@ contextBridge.exposeInMainWorld('ghost', {
   },
   enableSync: (token: string) => ipcRenderer.invoke('ghost:enable-sync', token),
   disableSync: () => ipcRenderer.invoke('ghost:disable-sync'),
-  getSyncStatus: () => ipcRenderer.invoke('ghost:get-sync-status')
+  getSyncStatus: () => ipcRenderer.invoke('ghost:get-sync-status'),
+  on: (channel: string, listener: (event: any, ...args: any[]) => void) => {
+    // Whitelist specific channels for security
+    const allowedChannels = ['ai-chat:partial'];
+    if (allowedChannels.includes(channel)) {
+      ipcRenderer.on(channel, listener);
+    }
+  },
+  off: (channel: string, listener: (event: any, ...args: any[]) => void) => {
+    const allowedChannels = ['ai-chat:partial'];
+    if (allowedChannels.includes(channel)) {
+      ipcRenderer.removeListener(channel, listener);
+    }
+  }
 } as GhostAPI);
 
 // Forward one-shot event when the main process wants to kick off automatic
