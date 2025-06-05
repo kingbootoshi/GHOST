@@ -1,0 +1,22 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "ghost-worker",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-06-05",
+
+	/* ─── Workers AI binding ───────────────────────────── */
+	"ai": { "binding": "AI" },
+
+	/* ─── Env vars (Supabase JWK endpoint) ─────────────── */
+	"vars": {
+		"SUPA_JWT_SECRET": "RBlQkUpSrGA1nAaBySShvuqIgHpqthkclKa63p3VsDD1GK/a7geOkCC0xlkFXQFLGGqI0QnRLHKGKa0zXX6k7g=="
+	},
+
+	"observability": {
+		"enabled": true
+	}
+}
