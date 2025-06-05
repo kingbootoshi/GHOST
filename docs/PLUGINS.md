@@ -1,408 +1,79 @@
-# GHOST Plugin Development Guide
+# Building a GHOST Plug-in
 
-## Overview
+> **Scaffold**
 
-GHOST's plugin system allows developers to extend the application with new AI capabilities, data sources, and integrations. Plugins run within the main process and have access to the encrypted database while maintaining security boundaries.
+```bash
+npx ghost-cli create-module my-weather
+````
 
-## Plugin Architecture
-
-### Core Concepts
-
-1. **AssistantModule** - The main plugin interface
-2. **ToolDef** - Functions that can be called by the AI
-3. **ModuleContext** - Runtime environment for plugins
-4. **Schema** - Database tables specific to the plugin
-
-### Module Structure
-
-```typescript
-interface AssistantModule {
-  id: string;                            // Unique identifier
-  schema?: string;                       // SQL CREATE statements
-  meta: { title: string; icon?: string };  // UI metadata
-  functions: Record<string, ModuleFunction>; // Exposed functions
-  init?(ctx: ModuleContext): Promise<void>; // Initialization hook
-}
-```
-
-## Creating a Plugin
-
-### 1. Project Structure
+creates:
 
 ```
-src/modules/my-plugin/
-├── index.ts       # Main module file
-├── schema.sql     # Database schema
-├── tools.ts       # Tool implementations
-└── README.md      # Documentation
+src/modules/my-weather/
+├── index.ts          # entry, exports AssistantModule
+├── ui.tsx            # optional React pane
+└── schema.sql        # if you prefer raw SQL
 ```
 
-### 2. Basic Plugin Example
+## 1. Minimal module
 
-```typescript
-// src/modules/echo/index.ts
-import { AssistantModule, ModuleContext } from '../../main/modules';
+```ts
+import { AssistantModule, defineTable } from '../../main/modules';
 
-const echo: AssistantModule = {
-  id: 'echo',
-  meta: { title: 'Echo', icon: '🗣️' },
-
-  schema: `CREATE TABLE IF NOT EXISTS echo_log (
-    id TEXT PRIMARY KEY,
-    text TEXT NOT NULL,
-    ts INTEGER NOT NULL
-  );`,
+const weather: AssistantModule = {
+  id: 'weather',
+  meta: { title: 'Weather', icon: '⛅️' },
 
   functions: {
-    reply: async ({ text }: { text: string }, ctx) => {
-      ctx.db.prepare(
-        'INSERT INTO echo_log (id, text, ts) VALUES (?, ?, ?)'
-      ).run(Date.now().toString(), text, Date.now());
-      return text;
-    },
-
-    'get-log': async (_, ctx) => {
-      return ctx.db.prepare(
-        'SELECT text, ts FROM echo_log ORDER BY ts DESC LIMIT 50'
-      ).all();
+    'get-now': async ({ city }: { city: string }, ctx) => {
+      const res = await fetch(`https://wttr.in/${city}?format=j1`).then(r => r.json());
+      return res.current_condition[0];
     }
   },
 
   async init(ctx) {
-    ctx.log.info('Echo ready');
+    // Persistent cache with sync enabled
+    defineTable('weather','cache','city TEXT, data TEXT', ctx.db, { sync: true });
   }
 };
 
-export default echo;
+export default weather;
 ```
 
-### Interop ► ctx.invoke
+* **All tables live inside the encrypted DB.**
+* **Never touch `fs` or `net`** directly; use `fetch` or Node APIs through main if needed.
+
+## 2. Add a mini-agent (optional)
 
 ```ts
-// inside a plugin
-const results = await ctx.invoke('echo', 'get-log', {});
-```
-
-### 3. Database Schema
-
-Plugins can define their own tables:
-
-```sql
--- schema.sql
-CREATE TABLE IF NOT EXISTS my_plugin_data (
-  id TEXT PRIMARY KEY,
-  content TEXT NOT NULL,
-  user_id TEXT,
-  metadata TEXT, -- JSON data
-  created_at INTEGER DEFAULT (strftime('%s', 'now')),
-  updated_at INTEGER DEFAULT (strftime('%s', 'now'))
-);
-
-CREATE INDEX idx_my_plugin_user ON my_plugin_data(user_id);
-```
-
-### 4. Tool Implementation
-
-```typescript
-// tools.ts
-import { ToolDef } from '../../main/modules';
-
-export const searchTool: ToolDef = {
-  name: 'search',
-  description: 'Search for content in the database',
-  parameters: {
-    type: 'object',
-    properties: {
-      query: { type: 'string' },
-      limit: { type: 'number', default: 10 }
-    },
-    required: ['query']
-  },
-  handler: async ({ query, limit = 10 }, ctx) => {
-    const results = ctx.db.prepare(`
-      SELECT * FROM my_plugin_data 
-      WHERE content LIKE ? 
-      LIMIT ?
-    `).all(`%${query}%`, limit);
-    
-    return results;
-  }
+export const agent = {
+  systemPrompt: `You are WeatherBot. Answer only about weather.`,
+  model: 'openrouter/mistral-small',
+  temperature: 0.2
 };
 ```
 
-## Advanced Features
+The Core Agent merges this into its tool-calling planner.
 
-### 1. State Management
+## 3. Testing
 
-```typescript
-class MyPlugin implements AssistantModule {
-  private state: Map<string, any> = new Map();
-  
-  async init(ctx: ModuleContext) {
-    // Initialize state
-    this.state.set('initialized', true);
-    
-    // Set up periodic tasks
-    setInterval(() => {
-      this.performMaintenance(ctx);
-    }, 60000); // Every minute
-  }
-  
-  private async performMaintenance(ctx: ModuleContext) {
-    ctx.log.info('Running maintenance task');
-    // Cleanup old data, etc.
-  }
-}
-```
-
-### 2. Inter-Plugin Communication
-
-```typescript
-// Plugin A exposes a service
-const pluginA: AssistantModule = {
-  id: 'plugin-a',
-  
-  async init(ctx: ModuleContext) {
-    // Register a service
-    ctx.registerService('data-provider', {
-      getData: async (key: string) => {
-        return ctx.db.prepare('SELECT * FROM data WHERE key = ?').get(key);
-      }
-    });
-  }
-};
-
-// Plugin B uses the service
-const pluginB: AssistantModule = {
-  id: 'plugin-b',
-  
-  async init(ctx: ModuleContext) {
-    // Use service from Plugin A
-    const dataProvider = ctx.getService('data-provider');
-    const data = await dataProvider.getData('some-key');
-  }
-};
-```
-
-### 3. Event Handling
-
-```typescript
-const eventPlugin: AssistantModule = {
-  id: 'event-handler',
-  
-  async init(ctx: ModuleContext) {
-    // Subscribe to events
-    ctx.on('chat:message', async (message) => {
-      ctx.log.info('New message:', message.id);
-      await this.processMessage(message);
-    });
-    
-    // Emit events
-    ctx.emit('plugin:ready', { pluginId: this.id });
-  }
-};
-```
-
-## Best Practices
-
-### 1. Error Handling
-
-```typescript
-handler: async (params) => {
-  try {
-    // Validate inputs
-    if (!params.content || params.content.length > 10000) {
-      throw new Error('Invalid content');
-    }
-    
-    // Perform operation
-    const result = await performOperation(params);
-    return { success: true, data: result };
-    
-  } catch (error) {
-    ctx.log.error('Operation failed:', error);
-    return { 
-      success: false, 
-      error: error.message 
-    };
-  }
-}
-```
-
-### 2. Database Transactions
-
-```typescript
-async function complexOperation(ctx: ModuleContext) {
-  const transaction = ctx.db.transaction(() => {
-    // Multiple database operations
-    ctx.db.prepare('INSERT INTO table1 ...').run();
-    ctx.db.prepare('UPDATE table2 ...').run();
-    ctx.db.prepare('DELETE FROM table3 ...').run();
-  });
-  
-  try {
-    transaction();
-    ctx.log.info('Transaction completed');
-  } catch (error) {
-    ctx.log.error('Transaction failed:', error);
-    throw error;
-  }
-}
-```
-
-### 3. Performance Optimization
-
-```typescript
-// Prepare statements for reuse
-class MyPlugin {
-  private statements: {
-    insert?: any;
-    select?: any;
-  } = {};
-  
-  async init(ctx: ModuleContext) {
-    // Prepare frequently used statements
-    this.statements.insert = ctx.db.prepare(
-      'INSERT INTO my_table (id, data) VALUES (?, ?)'
-    );
-    
-    this.statements.select = ctx.db.prepare(
-      'SELECT * FROM my_table WHERE id = ?'
-    );
-  }
-  
-  async insertData(id: string, data: any) {
-    return this.statements.insert.run(id, JSON.stringify(data));
-  }
-}
-```
-
-## Testing Plugins
-
-### 1. Unit Testing
-
-```typescript
-// __tests__/my-plugin.test.ts
-import { createTestContext } from '../../../test/helpers';
-import myPlugin from '../index';
-
-describe('MyPlugin', () => {
-  let ctx: ModuleContext;
-  
-  beforeEach(() => {
-    ctx = createTestContext();
-  });
-  
-  test('initializes correctly', async () => {
-    await myPlugin.init(ctx);
-    expect(ctx.log.info).toHaveBeenCalledWith('My plugin initialized');
-  });
-  
-  test('stores data correctly', async () => {
-    const handler = myPlugin.functions[0].handler;
-    const result = await handler({ content: 'test' }, ctx);
-    expect(result.success).toBe(true);
-  });
-});
-```
-
-### 2. Integration Testing
-
-```typescript
-// Test with real database
-import Database from 'better-sqlite3';
-import { createRealContext } from '../../../test/integration';
-
-test('plugin works with encrypted database', async () => {
-  const ctx = await createRealContext();
-  await myPlugin.init(ctx);
-  
-  // Test actual database operations
-  const result = await myPlugin.functions[0].handler(
-    { content: 'test data' }, 
-    ctx
-  );
-  
-  expect(result.success).toBe(true);
-});
-```
-
-## Plugin Distribution
-
-### 1. Package Structure
-
-```
-my-ghost-plugin/
-├── package.json
-├── README.md
-├── LICENSE
-├── dist/
-│   ├── index.js
-│   └── index.d.ts
-└── src/
-    └── index.ts
-```
-
-### 2. Publishing
-
-```json
-// package.json
-{
-  "name": "@ghost-plugins/my-plugin",
-  "version": "1.0.0",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "ghost": {
-    "version": "^1.0.0",
-    "moduleId": "my-plugin"
-  }
-}
-```
-
-### 3. Installation
-
-Future versions will support:
 ```bash
-ghost install @ghost-plugins/my-plugin
+npm run test -- module:weather
 ```
 
-## Security Guidelines
+The test helper boots an in-memory encrypted DB + fake Supabase.
 
-### Do's
-- ✅ Validate all user inputs
-- ✅ Use prepared statements
-- ✅ Handle errors gracefully
-- ✅ Log important events
-- ✅ Clean up resources
+## 4. Sync flags
 
-### Don'ts
-- ❌ Store secrets in code
-- ❌ Execute raw SQL from users
-- ❌ Access filesystem directly
-- ❌ Make network requests without user consent
-- ❌ Log sensitive information
+| Flag             | Effect                            |
+| ---------------- | --------------------------------- |
+| `{ sync: true }` | Table is replicated via PowerSync |
+| omit / false     | Local-only                        |
 
-## Example Plugins
+## 5. IPC from a module
 
-### 1. Echo Plugin (Built-in)
-Simple example that echoes user input
+```ts
+const notes = await ctx.invoke('notes','list', { tag:'urgent' });
+```
 
-### 2. Note Taker
-Stores and retrieves encrypted notes
-
-### 3. Task Manager
-Todo list with due dates and priorities
-
-### 4. Web Clipper
-Save and search web content
-
-### 5. API Connector
-Interface with external services
-
-## Future Enhancements
-
-1. **Plugin Marketplace** - Central repository for plugins
-2. **Sandboxing** - Enhanced isolation for untrusted plugins
-3. **Hot Reloading** - Update plugins without restart
-4. **Version Management** - Handle plugin compatibility
-5. **Dependency Resolution** - Manage plugin dependencies
+Zero coupling: you just call the public function of another plug-in.

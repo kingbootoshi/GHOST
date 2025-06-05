@@ -1,184 +1,49 @@
-# GHOST Architecture
-
-## Overview
-
-GHOST follows a multi-process architecture typical of Electron applications, with additional security layers for encrypted storage and plugin isolation. The application is designed around three core principles:
-
-1. **Zero-knowledge encryption** - The application cannot access user data without the master password
-2. **Process isolation** - Clear separation between main, preload, and renderer processes
-3. **Plugin extensibility** - Modular architecture for adding AI capabilities
-
-## System Architecture
+# GHOST Architecture (v0.2)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         User Interface                          │
-│                    (React + TypeScript)                         │
-└──────────────────────┬────────────────────┬────────────────────┘
-                       │                    │
-                       │   Context Bridge   │
-                       │    (Preload)       │
-                       │                    │
-┌──────────────────────▼────────────────────▼────────────────────┐
-│                         Main Process                           │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
-│  │   Auth      │  │   Database  │  │   Modules   │           │
-│  │  Manager    │  │   Manager   │  │   System    │           │
-│  └─────────────┘  └─────────────┘  └─────────────┘           │
-│         │                │                │                    │
-│         ▼                ▼                ▼                    │
-│  ┌─────────────────────────────────────────────┐              │
-│  │          Encrypted SQLite Database          │              │
-│  │         (better-sqlite3-multiple-ciphers)   │              │
-│  └─────────────────────────────────────────────┘              │
-└───────────────────────────────────────────────────────────────┘
-```
 
-## Process Model
+Main Process            Renderer                Supabase
+┌─────────────┐ IPC  ┌────────────┐  HTTPS  ┌──────────────┐
+│ Core Agent  │─────►│ React UI   │────────►│ PowerSync    │
+│ Module Reg. │◄─────│ Preload    │         └──────────────┘
+└─────┬───────┘      └────┬───────┘
+│ ctx.invoke()      │  window\.ghost.\*
+▼                   ▼
+┌──────────────────────────────────────────┐
+│   Plug-in (echo)  |  Plug-in (todo)      │
+│   mini-agent      |  mini-agent          │
+└──────────────────────────────────────────┘
 
-### Main Process
+````
 
-The main process (`src/main/`) handles:
-- Window management and lifecycle
-- Database encryption/decryption
-- Authentication and Touch ID integration
-- Plugin loading and management
-- IPC request handling
-- Global shortcut registration
+## 1. Process Roles
 
-Key components:
-- `bootstrap.ts` - Application initialization and window management
-- `db.ts` - Encrypted database operations
-- `auth.ts` - Authentication logic and biometric integration
-- `modules.ts` - Plugin loader and registry
-- `ipc.ts` - IPC communication handlers
+| Process | Code entry | Responsibilities |
+|---------|-----------|------------------|
+| **Main** | `src/main/bootstrap.ts` | encryption, DB, module host, global shortcuts |
+| **Preload** | `src/preload/index.ts` | **sole** bridge; typed IPC helpers |
+| **Renderer** | `src/renderer/app.tsx` | React UI, state hooks, no Node APIs |
 
-### Preload Script
+## 2. Encryption
 
-The preload script (`src/preload/index.ts`) provides:
-- Secure context bridge between main and renderer
-- Type-safe API exposure
-- No direct access to Node.js APIs
+* AES-256-CBC (SQLCipher)  
+* Key = Argon2id(passphrase, salt)  
+* Wiped with `sodium.memzero` after `lockDB()`  
+* **Every plug-in table is created through `defineTable()`** → inherits encryption automatically.
 
-### Renderer Process
+## 3. Sync Pipeline (optional)
 
-The renderer process (`src/renderer/`) contains:
-- React application with TypeScript
-- View components for different app states
-- Hooks for state management
-- All UI logic and styling
-- Plugin UIs are discovered at build time via `import.meta.glob('/src/modules/*/ui.tsx')` to eliminate run-time `require()`.
+1. Plug-in calls `defineTable('todo','items', ..., { sync: true })`  
+2. `syncManager.registerTable()` builds canonical columns (`_ps_version`, `updated_at`, …).  
+3. When the user toggles **Settings ▸ Enable Sync**, PowerSync starts delta streaming to Supabase storage bucket.
 
-## Data Flow
+See `src/main/sync.ts`.
 
-1. **User Input** → Renderer captures user action
-2. **IPC Call** → Renderer invokes preload API
-3. **Main Handler** → Main process handles request
-4. **Database Operation** → Encrypted read/write if needed
-5. **Response** → Raw result sent back through IPC (no wrapper)
-6. **UI Update** → Renderer updates based on response
+## 4. Core / Module / Mini-Agent flow
 
-## Security Architecture
+1. Renderer asks the Core Agent for a reply.  
+2. Core Agent decides whether a module tool is needed.  
+3. `moduleRegistry.invoke('todo','create-task', args)` runs inside the module’s isolated context.  
+4. The module’s **mini-agent** (if defined) can loop back via `ctx.invoke()`.
 
-### Encryption Layer
-
-- **Algorithm**: AES-256-CBC
-- **Key Derivation**: Argon2id with moderate settings
-- **Salt**: Randomly generated and stored separately
-- **Database**: Fully encrypted at rest
-
-### Process Isolation
-
-- Context isolation enabled
-- Node integration disabled in renderer
-- Minimal API surface exposed through preload
-- All sensitive operations in main process
-
-### Authentication Flow
-
-```
-┌──────────────┐
-│ First Launch │
-└──────┬───────┘
-       ▼
-┌──────────────┐     ┌─────────────┐
-│ Set Password │────▶│ Touch ID?   │
-└──────────────┘     └──────┬──────┘
-                            ▼
-                    ┌───────────────┐
-                    │ Store in      │
-                    │ Keychain      │
-                    └───────┬───────┘
-                            ▼
-                    ┌───────────────┐
-                    │   Unlocked    │
-                    └───────────────┘
-```
-
-## Plugin Architecture
-
-Plugins are isolated modules that:
-- Define their own database schemas
-- Register callable functions (tools)
-- Cannot access main process directly
-- Inherit encryption transparently
-
-### Module Structure
-
-```typescript
-interface AssistantModule {
-  id: string;                    // Unique identifier
-  schema?: string;               // SQL schema definition
-  meta: { title: string; icon?: string }; // UI metadata
-  functions: Record<string, ModuleFunction>; // Available functions
-  init?(ctx: ModuleContext): Promise<void>;  // Initialization
-}
-```
-
-## State Management
-
-The application maintains several state layers:
-
-1. **Authentication State** - Tracks login status and permissions
-2. **Database State** - Manages encrypted connection
-3. **UI State** - Component-level state in React
-4. **Plugin State** - Module-specific state
-
-## Communication Protocol
-
-All IPC communication follows a request/response pattern:
-
-```typescript
-// Request from renderer
-window.ghost.sendChat('Hello')
-
-// Main process handling
-ipcMain.handle('ghost:send-chat', async (event, text) => {
-  // Process and return response
-})
-
-// Response to renderer
-{ id: '...', role: 'assistant', content: '...', timestamp: ... }
-```
-
-## Performance Considerations
-
-- Database operations are synchronous but fast due to SQLite
-- Encryption overhead is minimal for typical usage
-- Plugin loading happens once at unlock
-- React renders are optimized with proper state management
-
-## Scalability
-
-The architecture supports:
-- Multiple plugin modules
-- Various authentication methods
-- Different encryption algorithms (via configuration)
-- Platform-specific features (Touch ID on macOS)
-
-## Future Architecture Considerations
-
-1. **Plugin Sandboxing** - Further isolate plugins for security
-2. **Multi-window Support** - Allow multiple chat windows
-3. **Remote Sync** - Optional encrypted cloud backup
-4. **Plugin Marketplace** - Distribution system for plugins
+> All messages are plain JSON. No circular references, no DOM objects.

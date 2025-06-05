@@ -1,5 +1,11 @@
 import { AssistantModule, ModuleContext } from '../../main/modules';
 import { defineTable } from '../../main/sync';
+import { ensureEchoLogSchema } from './migration';
+
+// After migration we expect the legacy `ts` column to be gone.  The flag is
+// kept solely as a defensive measure in case future databases re-introduce it
+// for whatever reason.
+let hasLegacyTsColumn = false;
 
 const echoModule: AssistantModule = {
   id: 'echo',
@@ -19,9 +25,24 @@ const echoModule: AssistantModule = {
       const userId = 'default-user';
       const now = Date.now();
       
-      // Persist to echo_log with canonical columns
-      ctx.db.prepare(`INSERT INTO echo_log (id, user_id, text, _ps_version, updated_at, deleted) VALUES (?, ?, ?, ?, ?, ?)`)
-        .run(now.toString(), userId, text, 0, now, 0);
+      // Persist to echo_log.  If the DB still contains the legacy `ts` column
+      // we must include it in the INSERT to avoid a NOT NULL constraint
+      // violation.  New installations created after the migration will *not*
+      // have this column, hence the conditional logic.
+      const insertBase = `INSERT INTO echo_log (id, user_id, text, _ps_version, updated_at, deleted`;
+      const valuesBase = `VALUES (?, ?, ?, ?, ?, ?`;
+
+      const stmt = hasLegacyTsColumn
+        ? ctx.db.prepare(
+            `${insertBase}, ts) ${valuesBase}, ?)`
+          )
+        : ctx.db.prepare(`${insertBase}) ${valuesBase})`);
+
+      if (hasLegacyTsColumn) {
+        stmt.run(now.toString(), userId, text, 0, now, 0, now);
+      } else {
+        stmt.run(now.toString(), userId, text, 0, now, 0);
+      }
       ctx.log.info(`Echo logged: ${text}`);
       return text;
     },
@@ -34,8 +55,25 @@ const echoModule: AssistantModule = {
   },
   
   async init(ctx: ModuleContext) {
-    // Define table with canonical columns
+    // ---------------------------------------------------------------------
+    // 1) Forward-only schema migration (runs once on startup)
+    // ---------------------------------------------------------------------
+    const { migrated, details } = ensureEchoLogSchema(ctx.db);
+    if (migrated) {
+      ctx.log.info(`Echo schema migrated – columns added: [${details.join(', ')}]`);
+    }
+
+    // ---------------------------------------------------------------------
+    // 2) Ensure table & indices exist using PowerSync helper.  **Important:**
+    //    For fresh installs this call creates `echo_log` without the legacy
+    //    `ts` column so future inserts can omit it.
+    // ---------------------------------------------------------------------
     defineTable('echo', 'log', 'text TEXT NOT NULL', ctx.db);
+
+    // Confirm legacy column removal.
+    const colRows = ctx.db.prepare('PRAGMA table_info(echo_log)').all() as Array<{ name: string }>;
+    hasLegacyTsColumn = colRows.some((c) => c.name === 'ts');
+    ctx.log.debug(`echo_log hasLegacyTsColumn (post-migration) = ${hasLegacyTsColumn}`);
     ctx.log.info('Echo module initialised with sync support');
   }
 };

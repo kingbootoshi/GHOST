@@ -155,8 +155,13 @@ export function defineTable(
     CREATE INDEX IF NOT EXISTS idx_${fullTableName}_deleted ON ${fullTableName}(deleted);
   `;
   
-  // Execute the schema
-  db.exec(fullSchema);
+  // Execute the schema with detailed error logging so we can trace failures
+  try {
+    db.exec(fullSchema);
+  } catch (err) {
+    logger.error('[sync] Schema execution failed for table', fullTableName, 'SQL:', fullSchema, 'Error:', err);
+    throw err; // rethrow so callers can handle appropriately
+  }
   
   // Register table with sync manager if enabled
   if (syncManager.isEnabled()) {
