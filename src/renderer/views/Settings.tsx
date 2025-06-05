@@ -6,12 +6,20 @@ interface Settings {
   supabaseEnabled: boolean;
 }
 
+interface SyncStatus {
+  enabled: boolean;
+  lastSyncedAt: number | null;
+  pendingBytes: number;
+}
+
 export const Settings: React.FC = () => {
   const [settings, setSettings] = useState<Settings>({
     supabaseEnabled: false
   });
   const [showSupabaseLogin, setShowSupabaseLogin] = useState(false);
-  const { user, signOut } = useSupabaseAuth();
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const { user, signOut, session } = useSupabaseAuth();
 
   useEffect(() => {
     // Load settings from localStorage
@@ -19,14 +27,46 @@ export const Settings: React.FC = () => {
     if (savedSettings) {
       setSettings(JSON.parse(savedSettings));
     }
+    
+    // Check sync status
+    window.ghost.getSyncStatus().then(setSyncStatus);
   }, []);
 
-  const handleToggleSupabase = () => {
+  const handleToggleSupabase = async () => {
+    if (!session?.access_token) return;
+    
+    setSyncing(true);
     const newValue = !settings.supabaseEnabled;
-    // Update settings
-    const newSettings = { ...settings, supabaseEnabled: newValue };
-    setSettings(newSettings);
-    localStorage.setItem('ghost-settings', JSON.stringify(newSettings));
+    
+    try {
+      if (newValue) {
+        // Enable sync
+        const result = await window.ghost.enableSync(session.access_token);
+        if (result.success) {
+          const newSettings = { ...settings, supabaseEnabled: newValue };
+          setSettings(newSettings);
+          localStorage.setItem('ghost-settings', JSON.stringify(newSettings));
+          const status = await window.ghost.getSyncStatus();
+          setSyncStatus(status);
+        } else {
+          console.error('Failed to enable sync:', result.error);
+        }
+      } else {
+        // Disable sync
+        const result = await window.ghost.disableSync();
+        if (result.success) {
+          const newSettings = { ...settings, supabaseEnabled: newValue };
+          setSettings(newSettings);
+          localStorage.setItem('ghost-settings', JSON.stringify(newSettings));
+          const status = await window.ghost.getSyncStatus();
+          setSyncStatus(status);
+        }
+      }
+    } catch (error) {
+      console.error('Sync toggle error:', error);
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const handleLoginClick = () => {
@@ -103,13 +143,22 @@ export const Settings: React.FC = () => {
             <div className="setting-info">
               <h3>Enable Sync</h3>
               <p>Sync your data across devices with PowerSync</p>
+              {syncStatus && syncStatus.enabled && (
+                <p className="setting-status">
+                  {syncStatus.lastSyncedAt 
+                    ? `Last synced: ${new Date(syncStatus.lastSyncedAt).toLocaleString()}`
+                    : 'Sync pending...'
+                  }
+                </p>
+              )}
             </div>
             
             <label className="toggle-switch">
               <input
                 type="checkbox"
-                checked={settings.supabaseEnabled}
+                checked={syncStatus?.enabled || false}
                 onChange={handleToggleSupabase}
+                disabled={syncing}
               />
               <span className="toggle-slider"></span>
             </label>

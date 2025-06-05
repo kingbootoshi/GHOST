@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
 export default function EchoUI() {
-  const [logs, setLogs] = useState<Array<{ text: string; ts: number }>>([]);
+  const [logs, setLogs] = useState<Array<{ text: string; updated_at: number }>>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
   const loadLogs = async () => {
     try {
       const data = await window.ghost.invokeModule('echo', 'get-log', {});
-      setLogs(data as Array<{ text: string; ts: number }>);
+      setLogs(data as Array<{ text: string; updated_at: number }>);
     } catch (err) {
       console.error('[EchoUI] failed to fetch logs', err);
     }
@@ -50,7 +50,7 @@ export default function EchoUI() {
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {logs.map((l, idx) => (
           <li key={idx} style={{ marginBottom: 4 }}>
-            {new Date(l.ts).toLocaleTimeString()}: {l.text}
+            {new Date(l.updated_at).toLocaleTimeString()}: {l.text}
           </li>
         ))}
       </ul>

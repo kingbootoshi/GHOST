@@ -13,6 +13,9 @@ interface GhostAPI {
   disableBiometric: () => Promise<{ success: boolean; error?: string }>;
   listModules: () => Promise<any[]>;
   invokeModule: (moduleId: string, fn: string, args: any) => Promise<any>;
+  enableSync: (token: string) => Promise<{ success: boolean; error?: string }>;
+  disableSync: () => Promise<{ success: boolean }>;
+  getSyncStatus: () => Promise<{ enabled: boolean; lastSyncedAt: number | null; pendingBytes: number }>;
 }
 
 // Expose the API to the renderer process
@@ -32,7 +35,10 @@ contextBridge.exposeInMainWorld('ghost', {
       throw new Error(res.error);
     }
     return res as any;
-  }
+  },
+  enableSync: (token: string) => ipcRenderer.invoke('ghost:enable-sync', token),
+  disableSync: () => ipcRenderer.invoke('ghost:disable-sync'),
+  getSyncStatus: () => ipcRenderer.invoke('ghost:get-sync-status')
 } as GhostAPI);
 
 // Forward one-shot event when the main process wants to kick off automatic

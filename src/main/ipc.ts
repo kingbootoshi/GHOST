@@ -4,9 +4,17 @@ import { openEncryptedDB, lockDB, getDB, isDatabaseExists, getCachedPassphrase }
 import { maybeGetKeyFromTouchID, storeKeyInKeychain, removeKeyFromKeychain, canUseTouchID, setBiometricFlags, getBiometricFlags } from './auth';
 import { moduleRegistry } from './modules';
 import { v4 as uuidv4 } from 'uuid';
+import { syncManager } from './sync';
 
 // Shared application-wide types
 import { ChatMessage, AuthState } from '../types';
+
+// Simple in-memory token storage for MVP
+let currentAuthToken: string | null = null;
+
+async function getSavedAuthToken(): Promise<string | null> {
+  return currentAuthToken;
+}
 
 export function setupIPC() {
   // Auth/password management
@@ -49,6 +57,22 @@ export function setupIPC() {
       const db = await openEncryptedDB(actualPassword!);
       await moduleRegistry.loadModules(db);
       
+      // Check if sync should be enabled
+      try {
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const savedToken = await getSavedAuthToken(); // We'll need to implement this
+        if (supabaseUrl && savedToken && syncManager.isEnabled()) {
+          await syncManager.init({
+            db,
+            supabaseUrl,
+            getAuthToken: async () => savedToken
+          });
+        }
+      } catch (syncError) {
+        logger.error('Failed to initialize sync on unlock:', syncError);
+        // Don't fail the unlock if sync fails
+      }
+      
       return { success: true };
     } catch (error) {
       const err = error as Error;
@@ -59,6 +83,16 @@ export function setupIPC() {
 
   ipcMain.handle('ghost:lock', async () => {
     logger.info('IPC: lock called');
+    
+    // Shutdown sync if enabled
+    try {
+      if (syncManager.isEnabled()) {
+        await syncManager.shutdown();
+      }
+    } catch (error) {
+      logger.error('Failed to shutdown sync on lock:', error);
+    }
+    
     lockDB();
     return { success: true };
   });
@@ -191,5 +225,52 @@ export function setupIPC() {
       logger.error('[IPC] invoke-module error:', err);
       return { error: err.message };
     }
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // Sync management
+  // ────────────────────────────────────────────────────────────────
+
+  ipcMain.handle('ghost:enable-sync', async (event, token: string) => {
+    logger.info('IPC: enable-sync called');
+    try {
+      const db = getDB();
+      if (!db) {
+        throw new Error('Database not unlocked');
+      }
+
+      // Store token for future use
+      currentAuthToken = token;
+
+      await syncManager.init({
+        db,
+        supabaseUrl: process.env.SUPABASE_URL || 'https://your-project.supabase.co',
+        getAuthToken: async () => token
+      });
+
+      return { success: true };
+    } catch (error) {
+      const err = error as Error;
+      logger.error('Failed to enable sync:', err);
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('ghost:disable-sync', async () => {
+    logger.info('IPC: disable-sync called');
+    try {
+      await syncManager.shutdown();
+      currentAuthToken = null; // Clear token
+      return { success: true };
+    } catch (error) {
+      const err = error as Error;
+      logger.error('Failed to disable sync:', err);
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('ghost:get-sync-status', async () => {
+    logger.info('IPC: get-sync-status called');
+    return syncManager.getStatus();
   });
 }

@@ -147,6 +147,31 @@ const baseShim: BaseShim = {
 // Default export – maintains previous `import logger from 'electron-log'` style.
 export default baseShim;
 
+// Export Logger class for compatibility
+export class Logger {
+  private logger: BaseShim;
+  
+  constructor(scope: string) {
+    this.logger = baseShim.scope(scope);
+  }
+  
+  info(...args: unknown[]): void {
+    this.logger.info(...args);
+  }
+  
+  warn(...args: unknown[]): void {
+    this.logger.warn(...args);
+  }
+  
+  error(...args: unknown[]): void {
+    this.logger.error(...args);
+  }
+  
+  debug(...args: unknown[]): void {
+    this.logger.debug(...args);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Renderer logging setup
 // ---------------------------------------------------------------------------

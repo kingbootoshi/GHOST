@@ -52,6 +52,7 @@
     "vite": "^5.4.19"
   },
   "dependencies": {
+    "@powersync/node": "^0.4.1",
     "@supabase/auth-ui-react": "^0.3.6",
     "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/supabase-js": "^2.49.8",
