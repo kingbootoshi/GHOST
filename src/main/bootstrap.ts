@@ -12,6 +12,29 @@ import * as keytar from 'keytar';
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
+// -----------------------------------------------------------------------------
+// Register a TypeScript require-hook in **development** so that the main process
+// can `require()` raw .ts / .tsx files (e.g. module entry points) without
+// tripping the "ERR_UNKNOWN_FILE_EXTENSION" error.  This happens *before* any
+// runtime code attempts to load a user module.
+// -----------------------------------------------------------------------------
+if (process.env.NODE_ENV === 'development') {
+  /* eslint-disable @typescript-eslint/no-var-requires */
+  // `transpileOnly` keeps the hook lightweight – we rely on Vite/TS for type
+  // checking.  Compiler options mirror the target the rest of the main bundle
+  // is compiled for so that emitted code is compatible with the current Node
+  // version shipped with Electron.
+  require('ts-node').register({
+    transpileOnly: true,
+    compilerOptions: {
+      target: 'es2020',
+      module: 'commonjs',
+      jsx: 'react-jsx',
+    },
+  });
+  /* eslint-enable @typescript-eslint/no-var-requires */
+}
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();

@@ -36,6 +36,53 @@ body {
   height: 100vh;
 }
 
+/* Module Settings */
+.module-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.module-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid #333;
+  padding-bottom: 0.5rem;
+}
+
+.module-tab {
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+}
+
+.module-tab:hover {
+  background-color: #2a2a2a;
+  color: #fff;
+}
+
+.module-tab.active {
+  color: #4a9eff;
+  background-color: #2a2a2a;
+}
+
+.module-icon {
+  font-size: 1.2rem;
+}
+
+.module-settings-content {
+  background-color: #2a2a2a;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
 /* Forms */
 .form-group {
   margin-bottom: 1rem;

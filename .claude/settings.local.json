@@ -15,7 +15,8 @@
       "mcp__context7__get-library-docs",
       "Bash(git checkout:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   },

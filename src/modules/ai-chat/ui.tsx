@@ -65,7 +65,8 @@ export default function AiChatUI() {
 
   const loadHistory = async () => {
     try {
-      const history = await window.ghost.invokeModule('ai-chat', 'get-history', {});
+      // Module functions are exported using camelCase; ensure we invoke the correct name
+      const history = await window.ghost.invokeModule('ai-chat', 'getHistory', {});
       setMessages(history as ChatMessage[]);
     } catch (err) {
       console.error('[AiChat] Failed to load history:', err);

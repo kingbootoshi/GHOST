@@ -227,6 +227,58 @@ export function setupIPC() {
     }
   });
 
+  // Module settings management
+  ipcMain.handle('ghost:get-module-settings', async (_event, moduleId: string) => {
+    logger.debug('[IPC] get-module-settings %s', moduleId);
+    try {
+      const db = getDB();
+      if (!db) {
+        throw new Error('Database not unlocked');
+      }
+
+      const result = await db.prepare(
+        'SELECT json FROM module_settings WHERE module_id = ?'
+      ).get(moduleId) as { json: string } | undefined;
+
+      return result ? JSON.parse(result.json) : {};
+    } catch (error) {
+      const err = error as Error;
+      logger.error('[IPC] get-module-settings error:', err);
+      return { error: err.message };
+    }
+  });
+
+  ipcMain.handle('ghost:patch-module-settings', async (_event, moduleId: string, diff: any) => {
+    logger.debug('[IPC] patch-module-settings %s', moduleId);
+    try {
+      const db = getDB();
+      if (!db) {
+        throw new Error('Database not unlocked');
+      }
+
+      // Get current settings
+      const result = await db.prepare(
+        'SELECT json FROM module_settings WHERE module_id = ?'
+      ).get(moduleId) as { json: string } | undefined;
+
+      const current = result ? JSON.parse(result.json) : {};
+      const updated = { ...current, ...diff };
+
+      // TODO: Validate against module schema here
+      
+      // Save updated settings
+      await db.prepare(
+        'INSERT OR REPLACE INTO module_settings (module_id, json) VALUES (?, ?)'
+      ).run(moduleId, JSON.stringify(updated));
+
+      return { success: true };
+    } catch (error) {
+      const err = error as Error;
+      logger.error('[IPC] patch-module-settings error:', err);
+      return { success: false, error: err.message };
+    }
+  });
+
   // ────────────────────────────────────────────────────────────────
   // Sync management
   // ────────────────────────────────────────────────────────────────

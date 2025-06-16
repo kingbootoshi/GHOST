@@ -73,6 +73,11 @@ export async function openEncryptedDB(passphrase: string): Promise<Database.Data
         timestamp INTEGER NOT NULL,
         metadata TEXT
       );
+      
+      CREATE TABLE IF NOT EXISTS module_settings (
+        module_id TEXT PRIMARY KEY,
+        json TEXT NOT NULL
+      );
     `);
     
     logger.info('DB opened successfully, cipher=aes256cbc, WAL enabled');
@@ -108,6 +113,10 @@ export function lockDB(): void {
 }
 
 export function getDB(): Database.Database | null {
+  return db;
+}
+
+export function getDb(): Database.Database | null {
   return db;
 }
 

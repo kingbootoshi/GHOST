@@ -7,7 +7,8 @@ export default function EchoUI() {
 
   const loadLogs = async () => {
     try {
-      const data = await window.ghost.invokeModule('echo', 'get-log', {});
+      // Use camelCase function name as per module's export
+      const data = await window.ghost.invokeModule('echo', 'getLog', {});
       setLogs(data as Array<{ text: string; updated_at: number }>);
     } catch (err) {
       console.error('[EchoUI] failed to fetch logs', err);

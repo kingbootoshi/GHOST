@@ -13,6 +13,8 @@ interface GhostAPI {
   disableBiometric: () => Promise<{ success: boolean; error?: string }>;
   listModules: () => Promise<any[]>;
   invokeModule: (moduleId: string, fn: string, args: any) => Promise<any>;
+  getModuleSettings: (moduleId: string) => Promise<any>;
+  patchModuleSettings: (moduleId: string, diff: any) => Promise<{ success: boolean; error?: string }>;
   enableSync: (token: string) => Promise<{ success: boolean; error?: string }>;
   disableSync: () => Promise<{ success: boolean }>;
   getSyncStatus: () => Promise<{ enabled: boolean; lastSyncedAt: number | null; pendingBytes: number }>;
@@ -38,6 +40,8 @@ contextBridge.exposeInMainWorld('ghost', {
     }
     return res as any;
   },
+  getModuleSettings: (moduleId: string) => ipcRenderer.invoke('ghost:get-module-settings', moduleId),
+  patchModuleSettings: (moduleId: string, diff: any) => ipcRenderer.invoke('ghost:patch-module-settings', moduleId, diff),
   enableSync: (token: string) => ipcRenderer.invoke('ghost:enable-sync', token),
   disableSync: () => ipcRenderer.invoke('ghost:disable-sync'),
   getSyncStatus: () => ipcRenderer.invoke('ghost:get-sync-status'),

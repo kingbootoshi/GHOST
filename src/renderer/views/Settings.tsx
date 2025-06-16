@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { SupabaseLogin } from './SupabaseLogin';
+import { ModuleSettingsPane } from '../settings/ModuleSettingsPane';
+import { ModuleMeta } from '../../modules/_schema';
 
 interface SettingsState {
   supabaseEnabled: boolean;
@@ -19,6 +21,8 @@ export const Settings: React.FC = () => {
   const [showSupabaseLogin, setShowSupabaseLogin] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [modules, setModules] = useState<ModuleMeta[]>([]);
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const { user, signOut, session } = useSupabaseAuth();
 
   useEffect(() => {
@@ -30,6 +34,9 @@ export const Settings: React.FC = () => {
     
     // Check sync status
     window.ghost.getSyncStatus().then(setSyncStatus);
+    
+    // Load modules
+    window.ghost.listModules().then(setModules);
   }, []);
 
   const handleToggleSupabase = async () => {
@@ -168,9 +175,36 @@ export const Settings: React.FC = () => {
 
       <section className="settings-section">
         <h2>Module Settings</h2>
-        <p className="settings-note">
-          Module-specific settings will appear here when modules are installed.
-        </p>
+        
+        {modules.length === 0 ? (
+          <p className="settings-note">
+            No modules installed yet.
+          </p>
+        ) : (
+          <div className="module-settings">
+            <div className="module-tabs">
+              {modules.map(module => (
+                <button
+                  key={module.id}
+                  className={`module-tab ${selectedModule === module.id ? 'active' : ''}`}
+                  onClick={() => setSelectedModule(module.id)}
+                >
+                  {module.icon && <span className="module-icon">{module.icon}</span>}
+                  {module.title}
+                </button>
+              ))}
+            </div>
+            
+            {selectedModule && (
+              <div className="module-settings-content">
+                <ModuleSettingsPane 
+                  moduleId={selectedModule}
+                  settingsSchema={modules.find(m => m.id === selectedModule)?.settingsSchema}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );
